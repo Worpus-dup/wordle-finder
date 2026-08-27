@@ -1,0 +1,12 @@
+/target
+
+# Any hidden files
+.**
+!.gitignore
+!.gitmodules
+
+# Trunk output files
+dist/
+
+# Generated files
+src/words.rs

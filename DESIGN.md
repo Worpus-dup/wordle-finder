@@ -191,7 +191,7 @@ As far as we know there is no direct dependencies on other components.
 pub enum SolverError {
     InvalidCharacter(char),   // Non-ASCII character found
     InvalidLength(usize),     // String not 5 characters
-    EmptyInput,               // No letters provided
+    EmptyInputs,              // ALL of inputs are empty.
 }
 ```
 

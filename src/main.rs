@@ -1,3 +1,6 @@
+mod solver;
+mod words;
+
 fn main() {
     let window = web_sys::window().expect("no global window");
     let document = window.document().expect("no document");
