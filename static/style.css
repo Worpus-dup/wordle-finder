@@ -4,6 +4,145 @@
     box-sizing: border-box;
 }
 
+:root {
+    /* 5-Color Palette */
+    --color-bg: #ffffff;
+    --color-tile: #d3d6da;
+    --color-correct: #6aaa64;
+    --color-misplaced: #c9b458;
+    --color-absent: #787c7e;
+
+    /* Text (derived) */
+    --color-text: #1a1a1a;
+    --color-text-tile: #ffffff;
+
+    /* Layout */
+    --tile-size: 3rem;
+    --tile-gap: 4px;
+    --tile-font: 1.5rem;
+}
+
 body {
     font-family: system-ui, -apple-system, sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+    min-height: 100vh;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    main {
+        flex-direction: row;
+        max-width: 1000px;
+    }
+
+    #inputs {
+        flex: 1;
+    }
+
+    #outputs {
+        flex: 1;
+    }
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+fieldset {
+    border: none;
+    margin-bottom: 1rem;
+}
+
+legend {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.word-row {
+    display: flex;
+    gap: var(--tile-gap);
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.word-row input {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    text-align: center;
+    font-size: var(--tile-font);
+    font-weight: bold;
+    text-transform: uppercase;
+    background: var(--color-tile);
+    color: var(--color-text);
+    border: none;
+    outline: none;
+}
+
+#correct-letters .word-row input:not(:placeholder-shown) {
+    background: var(--color-correct);
+    color: var(--color-text-tile);
+}
+
+#misplaced-letters .word-row input:not(:placeholder-shown) {
+    background: var(--color-misplaced);
+    color: var(--color-text-tile);
+}
+
+.word-row input:focus {
+    outline: 2px solid var(--color-absent);
+}
+
+button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background: var(--color-tile);
+    color: var(--color-text);
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background: var(--color-absent);
+    color: var(--color-text-tile);
+}
+
+#excluded-letters input {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border: 1px solid var(--color-tile);
+}
+
+#excluded-letters input:focus {
+    outline: 2px solid var(--color-absent);
+}
+
+#results {
+    min-height: 200px;
+    border: 1px solid var(--color-tile);
+    padding: 1rem;
+}
+
+.remove-row {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    font-size: 1.25rem;
+    margin-left: 0.25rem;
 }

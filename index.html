@@ -8,5 +8,90 @@
     <link data-trunk rel="rust" />
 </head>
 <body>
+    <main>
+        <section id="inputs">
+            <h1>Wordle Finder</h1>
+
+            <fieldset id="correct-letters">
+                <legend>Correct Letters</legend>
+                <div class="word-row">
+                    <input maxlength="1" type="text" placeholder=" " aria-label="Position 1">
+                    <input maxlength="1" type="text" placeholder=" " aria-label="Position 2">
+                    <input maxlength="1" type="text" placeholder=" " aria-label="Position 3">
+                    <input maxlength="1" type="text" placeholder=" " aria-label="Position 4">
+                    <input maxlength="1" type="text" placeholder=" " aria-label="Position 5">
+                </div>
+            </fieldset>
+
+            <fieldset id="misplaced-letters">
+                <legend>Misplaced Letters</legend>
+                <div id="misplaced-rows">
+                    <div class="word-row">
+                        <input maxlength="1" type="text" placeholder=" " aria-label="Position 1">
+                        <input maxlength="1" type="text" placeholder=" " aria-label="Position 2">
+                        <input maxlength="1" type="text" placeholder=" " aria-label="Position 3">
+                        <input maxlength="1" type="text" placeholder=" " aria-label="Position 4">
+                        <input maxlength="1" type="text" placeholder=" " aria-label="Position 5">
+                        <button type="button" class="remove-row" aria-label="Remove row">&times;</button>
+                    </div>
+                </div>
+                <button type="button" id="add-row">+ Add Row</button>
+            </fieldset>
+
+            <fieldset id="excluded-letters">
+                <legend>Excluded Letters</legend>
+                <input type="text" placeholder="e.g., xyz" aria-label="Excluded letters">
+            </fieldset>
+        </section>
+
+        <section id="outputs">
+            <h2>Possible Words</h2>
+            <div id="results"></div>
+        </section>
+    </main>
+
+    <script>
+        function getTileInputs() {
+            return Array.from(document.querySelectorAll('.word-row input'));
+        }
+
+        document.addEventListener('input', (e) => {
+            if (!e.target.matches('.word-row input')) return;
+            const inputs = getTileInputs();
+            const index = inputs.indexOf(e.target);
+            if (e.target.value && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Backspace') return;
+            const input = e.target;
+            if (!input.matches('.word-row input')) return;
+            const inputs = getTileInputs();
+            const index = inputs.indexOf(input);
+            if (!input.value && index > 0) {
+                inputs[index - 1].focus();
+            }
+        });
+
+        document.getElementById('add-row').addEventListener('click', () => {
+            const rows = document.getElementById('misplaced-rows');
+            if (rows.children.length < 5) {
+                const newRow = rows.children[0].cloneNode(true);
+                rows.appendChild(newRow);
+                newRow.querySelectorAll('input').forEach(input => input.value = '');
+            }
+        });
+
+        document.getElementById('misplaced-rows').addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-row')) {
+                const rows = document.getElementById('misplaced-rows');
+                if (rows.children.length > 1) {
+                    e.target.closest('.word-row').remove();
+                }
+            }
+        });
+    </script>
 </body>
 </html>
