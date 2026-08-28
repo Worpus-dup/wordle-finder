@@ -127,3 +127,10 @@ cargo build          # Build script generates words.rs
 - Original: "Wire together validator → filter → rank"
 - Actual: Added `misplaced_refs: Vec<&str>` conversion for type compatibility
 - Returns `Result<Vec<String>, SolverError>` (owned Strings for WASM interop)
+
+## Bugs
+
+**1. `all_empty` Whitespace-only misplaced letters**
+- When misplaced letters were presented as array of correctly "empty" strings it was tipping off the `misplaced.is_empty()` part.
+- Fix: use of `is_correct_empty` for misplaced letters as well `misplaced.iter().cloned().all(is_correct_empty)`.
+- Added test case for this situation.

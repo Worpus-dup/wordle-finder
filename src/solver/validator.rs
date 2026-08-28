@@ -7,7 +7,9 @@ pub fn is_correct_empty(correct: &str) -> bool {
 }
 
 pub fn all_empty(correct: &str, misplaced: &[&str], excluded: &str) -> bool {
-    is_correct_empty(correct) && misplaced.is_empty() && excluded.is_empty()
+    is_correct_empty(correct)
+    && misplaced.iter().cloned().all(is_correct_empty)
+    && excluded.is_empty()
 }
 
 pub fn validate(
@@ -208,6 +210,11 @@ mod tests {
     #[test]
     fn test_all_empty_true() {
         assert!(all_empty("     ", &[], ""));
+    }
+
+    #[test]
+    fn test_all_empty_misplaced_only_spaces() {
+        assert!(all_empty("     ", &["     ", "     "], ""));
     }
 
     #[test]
