@@ -4,6 +4,7 @@
 .**
 !.gitignore
 !.gitmodules
+!.github/
 
 # Trunk output files
 dist/

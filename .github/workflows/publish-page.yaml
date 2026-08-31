@@ -1,0 +1,51 @@
+name: Publish page
+run-name: ${{ github.actor }} is updated something! ^^
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Run tests
+        run: cargo test
+
+  build:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    steps:
+      - name: Add WASM target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install trunk-rs
+        uses: jetli/trunk-action@v0.5.1
+        with:
+          version: 'latest'
+      - name: Build static files
+        id: build
+        run: trunk build --release --public-url="./"
+
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
