@@ -42,6 +42,8 @@
                 <legend>Excluded Letters</legend>
                 <input type="text" placeholder="e.g., xyz" aria-label="Excluded letters">
             </fieldset>
+
+            <button type="button" id="clear-all">Clear All</button>
         </section>
 
         <section id="outputs">
@@ -50,49 +52,5 @@
             <div id="results"></div>
         </section>
     </main>
-
-    <script>
-        function getTileInputs() {
-            return Array.from(document.querySelectorAll('.word-row input'));
-        }
-
-        document.addEventListener('input', (e) => {
-            if (!e.target.matches('.word-row input')) return;
-            const inputs = getTileInputs();
-            const index = inputs.indexOf(e.target);
-            if (e.target.value && index < inputs.length - 1) {
-                inputs[index + 1].focus();
-            }
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Backspace') return;
-            const input = e.target;
-            if (!input.matches('.word-row input')) return;
-            const inputs = getTileInputs();
-            const index = inputs.indexOf(input);
-            if (!input.value && index > 0) {
-                inputs[index - 1].focus();
-            }
-        });
-
-        document.getElementById('add-row').addEventListener('click', () => {
-            const rows = document.getElementById('misplaced-rows');
-            if (rows.children.length < 5) {
-                const newRow = rows.children[0].cloneNode(true);
-                rows.appendChild(newRow);
-                newRow.querySelectorAll('input').forEach(input => input.value = '');
-            }
-        });
-
-        document.getElementById('misplaced-rows').addEventListener('click', (e) => {
-            if (e.target.classList.contains('remove-row')) {
-                const rows = document.getElementById('misplaced-rows');
-                if (rows.children.length > 1) {
-                    e.target.closest('.word-row').remove();
-                }
-            }
-        });
-    </script>
 </body>
 </html>

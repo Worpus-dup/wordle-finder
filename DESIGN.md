@@ -317,6 +317,6 @@ Button for clearing all of inputs are expected.
 
 #### Misplaced Letters Input
 
-As there are 1 or more input fields for misplaced letters, there must be mechanism to add/remove inputs. Maximum number of input "words" is 5 (max guesses in Wordle - 1). We propose a small button to the left of each "word" that will delete this "word" and a big button at the bottom of the column that will add new "word" input.
+As there are 1 or more input fields for misplaced letters, there must be mechanism to add/remove inputs. Maximum number of input "words" is 5 (max guesses in Wordle - 1). We propose a small button to the right of each "word" that will delete this "word" and a big button at the bottom of the column that will add new "word" input.
 
 Deletion logic is simple "delete current 'word' input if there more than 1 input left, otherwise clear it".

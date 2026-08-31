@@ -10,9 +10,13 @@ web-sys = { version = "0.3", features = [
     "Element",
     "HtmlElement",
     "HtmlInputElement",
+    "Node",
     "NodeList",
     "Event",
     "EventTarget",
+    "KeyboardEvent",
+    "DomTokenList",
+    "HtmlCollection",
     "Window",
     "console",
 ] }
