@@ -43,7 +43,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    needs: build
+    needs: [test, build]
     permissions:
       contents: read
       pages: write

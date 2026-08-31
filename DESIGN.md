@@ -263,6 +263,7 @@ dist/
 ```
 
 #### JS Bindings
+<!-- TODO: Update if needed -->
 - Internal only, not exposed as library
 - Could be feature-gated in Cargo.toml if needed later:
 ```toml
@@ -272,6 +273,7 @@ js-bindings = []
 ```
 
 #### Deployment
+- Automatic using GitHub Actions
 - GitHub Pages from dist/ folder
 - No server-side logic required
 
@@ -280,12 +282,13 @@ js-bindings = []
 ```
 wordle-finder/
 ├── src/
-│   ├── lib.rs              # WASM entry point
+│   ├── main.rs              # WASM entry point
 │   ├── solver/
 │   │   ├── mod.rs          # Public API (solve function)
+│   │   ├── validator.rs    # Input validation
 │   │   ├── filter.rs       # Word filtering logic
 │   │   └── rank.rs         # Result ranking
-│   ├── validator.rs        # Input validation
+│   ├── visualizer.rs       # Visualizer module (DOM logic)
 │   └── words.rs            # Word bank constant
 ├── data/
 │   ├── solutions.txt       # 2,309 solution words (user-provided)
@@ -309,3 +312,11 @@ Most input fields are presented as block of 5 letters for each "word".
 In the desktop version inputs are located on left side of the screen and place for outputs will be located on the right side.
 
 In the mobile version layout is vertical where inputs are above the outputs. In mobile version taking full width minus the padding is expected.
+
+Button for clearing all of inputs are expected.
+
+#### Misplaced Letters Input
+
+As there are 1 or more input fields for misplaced letters, there must be mechanism to add/remove inputs. Maximum number of input "words" is 5 (max guesses in Wordle - 1). We propose a small button to the left of each "word" that will delete this "word" and a big button at the bottom of the column that will add new "word" input.
+
+Deletion logic is simple "delete current 'word' input if there more than 1 input left, otherwise clear it".

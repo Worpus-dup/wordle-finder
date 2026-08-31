@@ -12,7 +12,7 @@
 - Sanitize user inputs before passing to the solver.
 - Show a user-facing error message on the page for critical/unsanitizable cases (per DESIGN.md), rather than only logging to console.
 
-### Open design questions (to resolve before implementation)
+### Open Design Questions (to resolve before implementation)
 - **Q1: Scope of "sanitize"**:
   - (a) Sanitize-only: coerce bad input to valid before solving (e.g., lowercase all letters, drop non a-z), then render normally.
   - (b) Error-display: keep meaningful errors but show a user-facing message on the page.
@@ -21,13 +21,13 @@
   - Note: 5-tile inputs accept at most 1 char each; realistic sanitization targets are **case** (uppercase) and the **excluded letters** free-text input.
 - **Q3: New task file vs. extend 003**: prefer a new task file (e.g., `004-input-sanitizer.md`).
 
-### Likely acceptance criteria (initial)
+### Likely Acceptance Criteria (Initial)
 - [ ] Uppercase letters are lowercased before solving
 - [ ] Non-alphabetic characters in excluded input are handled/sanitized
 - [ ] Critical errors (e.g., all-empty / invalid) show a user-facing message on the page
 - [ ] Results update as inputs are corrected (processing restarts)
 - [ ] `cargo test` passes
 
-### Scope limits (initial)
+### Scope Limits (Initial)
 - Do NOT add result styling (separate task)
 - Do NOT rewrite keyboard-navigation JS in Rust (separate task)
