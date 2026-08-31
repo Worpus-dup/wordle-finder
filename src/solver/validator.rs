@@ -32,17 +32,21 @@ fn validate_correct(input: &str) -> Result<String, SolverError> {
     }
     let mut result = String::with_capacity(5);
     for c in input.chars() {
-        if c == UNKNOWN {
-            result.push(UNKNOWN);
-        } else if c.is_ascii_lowercase() {
-            result.push(c);
-        } else if c.is_ascii_uppercase() {
-            result.push(c.to_ascii_lowercase());
-        } else {
-            return Err(SolverError::InvalidCharacter(c));
-        }
+        result.push(sanitize_letter(c, true)?);
     }
     Ok(result)
+}
+
+pub fn sanitize_letter(letter: char, ignore_placeholder: bool) -> Result<char, SolverError> {
+    if ignore_placeholder && letter == UNKNOWN {
+        Ok(UNKNOWN)
+    } else if letter.is_ascii_lowercase() {
+        Ok(letter)
+    } else if letter.is_ascii_uppercase() {
+        Ok(letter.to_ascii_lowercase())
+    } else {
+        Err(SolverError::InvalidCharacter(letter))
+    }
 }
 
 fn validate_misplaced(inputs: &[&str]) -> Result<Vec<String>, SolverError> {
@@ -57,13 +61,7 @@ fn validate_misplaced(inputs: &[&str]) -> Result<Vec<String>, SolverError> {
 fn validate_excluded(input: &str) -> Result<String, SolverError> {
     let mut result = String::with_capacity(input.len());
     for c in input.chars() {
-        if c.is_ascii_lowercase() {
-            result.push(c);
-        } else if c.is_ascii_uppercase() {
-            result.push(c.to_ascii_lowercase());
-        } else {
-            return Err(SolverError::InvalidCharacter(c));
-        }
+        result.push(sanitize_letter(c, false)?);
     }
     Ok(result)
 }
@@ -72,23 +70,22 @@ fn validate_excluded(input: &str) -> Result<String, SolverError> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_validate_correct_lowercase() {
-        let (correct, _, _) = validate("abcde", &[], "").unwrap();
-        assert_eq!(correct, "abcde");
+    macro_rules! sanitize_letter_case {
+        ($name:ident, $letter:expr, $ignore:expr => $expected:expr) => {
+            #[test]
+            fn $name() {
+                assert_eq!(sanitize_letter($letter, $ignore), $expected);
+            }
+        };
     }
 
-    #[test]
-    fn test_validate_correct_uppercase() {
-        let (correct, _, _) = validate("ABCDE", &[], "").unwrap();
-        assert_eq!(correct, "abcde");
-    }
-
-    #[test]
-    fn test_validate_correct_mixed_case() {
-        let (correct, _, _) = validate("aBcDe", &[], "").unwrap();
-        assert_eq!(correct, "abcde");
-    }
+    sanitize_letter_case!(test_sanitize_letter_lowercase, 'a', true => Ok('a'));
+    sanitize_letter_case!(test_sanitize_letter_uppercase, 'A', true => Ok('a'));
+    sanitize_letter_case!(test_sanitize_letter_placeholder_allowed, ' ', true => Ok(' '));
+    sanitize_letter_case!(test_sanitize_letter_placeholder_forbidden, ' ', false => Err(SolverError::InvalidCharacter(' ')));
+    sanitize_letter_case!(test_sanitize_letter_invalid_allowed, '.', true => Err(SolverError::InvalidCharacter('.')));
+    sanitize_letter_case!(test_sanitize_letter_invalid_forbidden, '.', false => Err(SolverError::InvalidCharacter('.')));
+    sanitize_letter_case!(test_sanitize_letter_unicode_allowed, 'ñ', true => Err(SolverError::InvalidCharacter('ñ')));
 
     #[test]
     fn test_validate_correct_with_unknown() {
@@ -106,18 +103,6 @@ mod tests {
     fn test_validate_correct_invalid_length_long() {
         let err = validate("abcdef", &[], "").unwrap_err();
         assert_eq!(err, SolverError::InvalidLength(6));
-    }
-
-    #[test]
-    fn test_validate_correct_invalid_character() {
-        let err = validate("ab.de", &[], "").unwrap_err();
-        assert_eq!(err, SolverError::InvalidCharacter('.'));
-    }
-
-    #[test]
-    fn test_validate_correct_invalid_unicode() {
-        let err = validate("ab\0de", &[], "").unwrap_err();
-        assert_eq!(err, SolverError::InvalidCharacter('\0'));
     }
 
     #[test]
@@ -141,24 +126,6 @@ mod tests {
     #[test]
     fn test_validate_misplaced_invalid_character() {
         let err = validate("     ", &["a.b.d"], "").unwrap_err();
-        assert_eq!(err, SolverError::InvalidCharacter('.'));
-    }
-
-    #[test]
-    fn test_validate_excluded_valid() {
-        let (_, _, excluded) = validate("     ", &[], "abc").unwrap();
-        assert_eq!(excluded, "abc");
-    }
-
-    #[test]
-    fn test_validate_excluded_uppercase() {
-        let (_, _, excluded) = validate("     ", &[], "ABC").unwrap();
-        assert_eq!(excluded, "abc");
-    }
-
-    #[test]
-    fn test_validate_excluded_invalid_character() {
-        let err = validate("     ", &[], "ab.c").unwrap_err();
         assert_eq!(err, SolverError::InvalidCharacter('.'));
     }
 

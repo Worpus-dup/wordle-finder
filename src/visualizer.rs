@@ -1,3 +1,4 @@
+use crate::solver::validator::sanitize_letter;
 use crate::solver::validator::UNKNOWN;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -29,11 +30,29 @@ fn handle_input(document: &web_sys::Document) {
     let misplaced_refs: Vec<&str> = misplaced.iter().map(String::as_str).collect();
 
     match crate::solver::solve(&correct, &misplaced_refs, &excluded) {
-        Ok(words) => render_results(document, &words),
+        Ok(words) => {
+            hide_error(document);
+            render_results(document, &words);
+        }
         Err(e) => {
             clear_results(document);
+            show_error(document, &e.to_string());
             web_sys::console::error_1(&e.to_string().into());
         }
+    }
+}
+
+fn show_error(document: &web_sys::Document, message: &str) {
+    if let Some(el) = document.get_element_by_id("error") {
+        el.set_text_content(Some(message));
+        let _ = el.remove_attribute("hidden");
+    }
+}
+
+fn hide_error(document: &web_sys::Document) {
+    if let Some(el) = document.get_element_by_id("error") {
+        el.set_text_content(None);
+        let _ = el.set_attribute("hidden", "");
     }
 }
 
@@ -79,7 +98,7 @@ fn read_misplaced(document: &web_sys::Document) -> Vec<String> {
 fn read_excluded(document: &web_sys::Document) -> String {
     if let Ok(Some(node)) = document.query_selector("#excluded-letters input") {
         if let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>() {
-            return input.value();
+            return sanitize_excluded(&input.value());
         }
     }
     String::new()
@@ -100,10 +119,22 @@ fn collect_tile_values(node_list: Result<web_sys::NodeList, wasm_bindgen::JsValu
     tiles
 }
 
+fn sanitize_tile(value: &str) -> char {
+    let c = value.chars().next().unwrap_or(UNKNOWN);
+    sanitize_letter(c, true).unwrap_or(UNKNOWN)
+}
+
+fn sanitize_excluded(input: &str) -> String {
+    input
+        .chars()
+        .filter_map(|c| sanitize_letter(c, false).ok())
+        .collect()
+}
+
 pub fn tiles_to_pattern<T: AsRef<str>>(tiles: &[T]) -> String {
     tiles
         .iter()
-        .map(|t| t.as_ref().chars().next().unwrap_or(UNKNOWN))
+        .map(|t| sanitize_tile(t.as_ref()))
         .collect()
 }
 
@@ -119,5 +150,46 @@ mod tests {
     #[test]
     fn test_tiles_to_pattern_mixed() {
         assert_eq!(tiles_to_pattern(&["a", "", " ", "c", ""]), "a  c ");
+    }
+
+    #[test]
+    fn test_sanitize_tile_lowercase() {
+        assert_eq!(sanitize_tile("a"), 'a');
+    }
+
+    #[test]
+    fn test_sanitize_tile_uppercase_lowered() {
+        assert_eq!(sanitize_tile("A"), 'a');
+    }
+
+    #[test]
+    fn test_sanitize_tile_empty_is_placeholder() {
+        assert_eq!(sanitize_tile(""), ' ');
+    }
+
+    #[test]
+    fn test_sanitize_tile_invalid_is_placeholder() {
+        assert_eq!(sanitize_tile("."), ' ');
+        assert_eq!(sanitize_tile("ñ"), ' ');
+    }
+
+    #[test]
+    fn test_sanitize_excluded_lowercase() {
+        assert_eq!(sanitize_excluded("abc"), "abc");
+    }
+
+    #[test]
+    fn test_sanitize_excluded_uppercase_lowered() {
+        assert_eq!(sanitize_excluded("ABC"), "abc");
+    }
+
+    #[test]
+    fn test_sanitize_excluded_drops_invalid() {
+        assert_eq!(sanitize_excluded("ab.c ñ"), "abc");
+    }
+
+    #[test]
+    fn test_sanitize_excluded_empty() {
+        assert_eq!(sanitize_excluded(""), "");
     }
 }
