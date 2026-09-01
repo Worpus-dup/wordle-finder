@@ -33,11 +33,11 @@ This are non-negotiable points for this system design:
 Risk: WASM bundle size may exceed 200kb target
  - While it is possible to try to optimise size of WASM bundle during the feature development. It is counterproductive. The bundle size optimization will be the last on the development cycle.
 
-Risk: Word bank accuracy/legality (2039 words source)
+Risk: Word bank accuracy/legality (2315 words source)
  - It is out of scope for this project.
 
 Risk: Browser compatibility for WASM
- - As WASM support is widely available we will not mitigate this. However appropriate message for user without Javascript/WASM support must be displayed.
+ - As WASM support is widely available we will not mitigate this. However appropriate message for user without JavaScript/WASM support must be displayed.
 
 Risk: Mobile performance on low-end devices
  - Performance on low-end devices is not taken into account for performance goal, but we should strive for comparable numbers.
@@ -48,7 +48,7 @@ Risk: Creating a single HTML file page may be not feasible due to WASM code bein
 ### Assumptions
  - Users will primarily access application through desktop and mobile browsers.
  - All computations will be run on the client side.
- - Users use official Wordle game implementation with 2039 words dictionary.
+ - Users use official Wordle game implementation with 2315 words dictionary.
 
 ## System Architecture
 
@@ -99,28 +99,31 @@ The main decision is representing letters that are contained in a word by using 
 It used as a mask should allow for easier comparison to letters that are in the word (correct and misplaced) and excluded letters in only 2 bitwise operations which will (presumably) speed up initial search for candidates.
 
 All words will be stored in single constant byte-array. Padding of said array is optional and should be decided after careful testing in performance difference.
-That said array without padding is preferable due to raw size of data 9.96kb without padding vs 15.92kb with padding.
+That said array without padding is preferable due to raw size of data 11.3kb without padding vs 18.08kb with padding (each word padded to 8 bytes).
 
 ### User Input Validation
 
-Any non-ASCII letter character in user input should be treated as error and block any additional data manipulation.
+Input validation happens at two layers:
 
-Even though game solving logic is expected to receive sanitised user input it must recognize any invalid input and return to user code error value with the reason.
+- **Visualizer (user-facing)**: Sanitises incorrect data and replaces the original rather than blocking. Tile inputs treat non-alpha/invalid characters as placeholders (`UNKNOWN`) and lowercase uppercase letters; the excluded-letters input drops invalid characters and lowercases the rest.
+- **Solver (defensive)**: Even though it is expected to receive already-sanitised input, it must recognize any invalid input and return an error value with the reason to the caller, rather than silently proceeding.
+
+The sanitise-and-replace behaviour described for the visualizer is the preferred end-user experience.
 
 ### Word Bank
 
 #### Source
 - User-provided word lists in data/ folder
-- MVP uses solutions.txt only (2,309 words)
+- MVP uses `data/answers/wordle-answers-alphabetical.txt` (2,315 words)
 
 #### Storage Format
 - No spaces, continuous 5-byte chunks
-- Total size: 11,545 bytes (2,309 × 5)
+- Total size: 11,575 bytes (2,315 × 5)
 
 ```rust
-// words.rs - generated from data/solutions.txt
-pub const WORD_COUNT: usize = 2309;
-pub const WORDS: &[u8; 11545] = b"abackabaseabate...zinch";
+// words.rs - generated from data/answers/wordle-answers-alphabetical.txt
+pub const WORD_COUNT: usize = 2315;
+pub const WORDS: &[u8] = b"abackabaseabate...zinch";
 // Access word at index i: &WORDS[i*5..(i+1)*5]
 ```
 
@@ -195,27 +198,16 @@ pub enum SolverError {
 }
 ```
 
-#### Error Response Format
-```json
-{
-  "ok": false,
-  "error": {
-    "code": "INVALID_CHARACTER",
-    "message": "Found non-ASCII character: 'ñ'"
-  }
-}
-```
-
 #### User-Facing Errors
-- Display error message below relevant input field
-- Highlight invalid input field
-- Allow immediate correction without page reset
+- Display a single error message element (`#error`) above the results area.
+- On any `solve()` error, show the error message (e.g. "All inputs are empty") and clear the results; hide it on the next successful solve.
+- Allow immediate correction without page reset.
 
 ## Testing Strategy
 
 #### Test Framework
-- Standard `#[test]` for unit tests
-- wasm-bindgen-test for WASM integration tests (feature-gated)
+- Standard `#[test]` unit tests, defined inline within each module (`#[cfg(test)]`).
+- No external `tests/` directory; no `wasm-bindgen-test` (not yet needed).
 
 #### Test Categories
 
@@ -232,12 +224,12 @@ pub enum SolverError {
 - Handles case insensitivity
 - Empty optional fields handled
 
-**Integration Tests**
-- solve() returns correct JSON structure
-- Error cases return proper error codes
+**Other Unit Tests**
+- `SolverError` display/Debug/equality
+- Visualizer pure helpers (`tiles_to_pattern`, `sanitize_tile`, `sanitize_excluded`)
 
 #### Test Data
-- Subset of solution words for fast testing
+- Inline word-bank constants from `src/words.rs` (subset where fast)
 - Known Wordle answers for verification
 
 ## Build & Deployment
@@ -286,18 +278,18 @@ wordle-finder/
 │   ├── solver/
 │   │   ├── mod.rs          # Public API (solve function)
 │   │   ├── validator.rs    # Input validation
+│   │   ├── error.rs        # Error enum definition
 │   │   ├── filter.rs       # Word filtering logic
 │   │   └── rank.rs         # Result ranking
 │   ├── visualizer.rs       # Visualizer module (DOM logic)
 │   └── words.rs            # Word bank constant
 ├── data/
-│   ├── solutions.txt       # 2,309 solution words (user-provided)
+│   ├── answers/            # Submodule from github gists
+│   │   └── (answers).rs    # 2,315 solution words
 │   └── guesses.txt         # Valid guess words (for future use)
 ├── static/
-│   ├── index.html
 │   └── style.css
-├── tests/
-│   └── solver_tests.rs     # Integration tests
+├── index.html
 ├── Cargo.toml
 └── DESIGN.md
 ```
