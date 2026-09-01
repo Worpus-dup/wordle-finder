@@ -26,7 +26,6 @@ fn matches_correct(word: &str, correct: &str) -> bool {
 fn matches_misplaced(word: &str, misplaced: &[&str]) -> bool {
     for pattern in misplaced.iter() {
         let mut required: [usize; 26] = [0; 26];
-        let mut positions: Vec<(usize, char)> = Vec::new();
 
         for (j, pattern_char) in pattern.chars().enumerate() {
             if pattern_char == UNKNOWN {
@@ -36,7 +35,6 @@ fn matches_misplaced(word: &str, misplaced: &[&str]) -> bool {
                 return false;
             }
             required[(pattern_char as u8 - b'a') as usize] += 1;
-            positions.push((j, pattern_char));
         }
 
         for (ch_idx, &count) in required.iter().enumerate() {
@@ -49,8 +47,6 @@ fn matches_misplaced(word: &str, misplaced: &[&str]) -> bool {
                 return false;
             }
         }
-
-        let _ = positions;
     }
     true
 }
@@ -69,20 +65,20 @@ mod tests {
 
     #[test]
     fn test_filter_exact_match() {
-        let result = filter(&WORDS, "apple", &[], "");
+        let result = filter(WORDS, "apple", &[], "");
         assert_eq!(result, vec!["apple"]);
     }
 
     #[test]
     fn test_filter_first_letter() {
-        let result = filter(&WORDS, "a    ", &[], "");
+        let result = filter(WORDS, "a    ", &[], "");
         assert!(result.contains(&"apple"));
         assert!(!result.contains(&"grape"));
     }
 
     #[test]
     fn test_filter_excluded_letters() {
-        let result = filter(&WORDS, "     ", &[], "ae");
+        let result = filter(WORDS, "     ", &[], "ae");
         assert!(!result.contains(&"apple"));
         assert!(!result.contains(&"grape"));
         assert!(!result.contains(&"melon"));
@@ -90,13 +86,13 @@ mod tests {
 
     #[test]
     fn test_filter_excluded_none_match() {
-        let result = filter(&WORDS, "    ", &[], "aeiou");
+        let result = filter(WORDS, "    ", &[], "aeiou");
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_filter_misplaced_letter() {
-        let result = filter(&WORDS, "     ", &[" a   "], "");
+        let result = filter(WORDS, "     ", &[" a   "], "");
         for word in &result {
             assert!(word.contains('a'));
             assert_ne!(word.chars().nth(1), Some('a'));
@@ -105,16 +101,16 @@ mod tests {
 
     #[test]
     fn test_filter_misplaced_not_at_position() {
-        let result = filter(&WORDS, "     ", &["a    "], "");
+        let result = filter(WORDS, "     ", &["a    "], "");
         for word in &result {
             assert!(word.contains('a'));
-            assert_ne!(word.chars().nth(0), Some('a'));
+            assert_ne!(word.chars().next(), Some('a'));
         }
     }
 
     #[test]
     fn test_filter_multiple_misplaced() {
-        let result = filter(&WORDS, "     ", &[" a  ", "  l  "], "");
+        let result = filter(WORDS, "     ", &[" a  ", "  l  "], "");
         for word in &result {
             assert!(word.contains('a'));
             assert!(word.contains('l'));
@@ -125,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_filter_combined_correct_and_excluded() {
-        let result = filter(&WORDS, "  pp ", &[], "a");
+        let result = filter(WORDS, "  pp ", &[], "a");
         for word in &result {
             assert_eq!(word.chars().nth(2), Some('p'));
             assert_eq!(word.chars().nth(3), Some('p'));
@@ -135,13 +131,13 @@ mod tests {
 
     #[test]
     fn test_filter_no_match() {
-        let result = filter(&WORDS, "xyzwv", &[], "");
+        let result = filter(WORDS, "xyzwv", &[], "");
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_filter_all_words_match() {
-        let result = filter(&WORDS, "     ", &[], "");
+        let result = filter(WORDS, "     ", &[], "");
         assert_eq!(result.len(), WORDS.len());
     }
 

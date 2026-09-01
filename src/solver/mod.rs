@@ -1,3 +1,4 @@
+pub mod bitmask;
 pub mod error;
 pub mod filter;
 pub mod rank;
@@ -6,7 +7,10 @@ pub mod validator;
 use error::SolverError;
 use filter::filter;
 use rank::rank;
+use std::sync::OnceLock;
 use validator::validate;
+
+static WORDS_CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
 
 pub fn solve(
     correct_letters: &str,
@@ -15,17 +19,19 @@ pub fn solve(
 ) -> Result<Vec<String>, SolverError> {
     let (correct, misplaced, excluded) = validate(correct_letters, misplaced_letters, excluded_letters)?;
     let misplaced_refs: Vec<&str> = misplaced.iter().map(|s| s.as_str()).collect();
-    let words = words_as_strs();
-    let filtered = filter(&words, &correct, &misplaced_refs, &excluded);
+    let words = words();
+    let filtered = filter(words, &correct, &misplaced_refs, &excluded);
     let ranked = rank(&filtered, &correct, &misplaced_refs, &excluded);
     Ok(ranked.into_iter().map(String::from).collect())
 }
 
-fn words_as_strs() -> Vec<&'static str> {
-    crate::words::WORDS
-        .chunks(5)
-        .map(|chunk| std::str::from_utf8(chunk).unwrap())
-        .collect()
+fn words() -> &'static [&'static str] {
+    WORDS_CACHE.get_or_init(|| {
+        crate::words::WORDS
+            .chunks(5)
+            .map(|chunk| std::str::from_utf8(chunk).unwrap())
+            .collect()
+    })
 }
 
 #[cfg(test)]
@@ -104,5 +110,12 @@ mod tests {
             assert!(w1.starts_with('a'));
             assert!(w2.starts_with('a'));
         }
+    }
+
+    #[test]
+    fn test_words_cache_returns_same_backing() {
+        let a = words();
+        let b = words();
+        assert_eq!(a.as_ptr(), b.as_ptr());
     }
 }

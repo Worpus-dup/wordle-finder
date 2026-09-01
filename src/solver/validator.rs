@@ -79,6 +79,25 @@ mod tests {
         };
     }
 
+    macro_rules! validate_error {
+        ($name:ident, $correct:expr, $misplaced:expr, $excluded:expr => $err:expr) => {
+            #[test]
+            fn $name() {
+                let e = validate($correct, $misplaced, $excluded).unwrap_err();
+                assert_eq!(e, $err);
+            }
+        };
+    }
+
+    macro_rules! validate_ok {
+        ($name:ident, $correct:expr, $misplaced:expr, $excluded:expr) => {
+            #[test]
+            fn $name() {
+                assert!(validate($correct, $misplaced, $excluded).is_ok());
+            }
+        };
+    }
+
     sanitize_letter_case!(test_sanitize_letter_lowercase, 'a', true => Ok('a'));
     sanitize_letter_case!(test_sanitize_letter_uppercase, 'A', true => Ok('a'));
     sanitize_letter_case!(test_sanitize_letter_placeholder_allowed, ' ', true => Ok(' '));
@@ -93,17 +112,8 @@ mod tests {
         assert_eq!(correct, "a p l");
     }
 
-    #[test]
-    fn test_validate_correct_invalid_length_short() {
-        let err = validate("abc", &[], "").unwrap_err();
-        assert_eq!(err, SolverError::InvalidLength(3));
-    }
-
-    #[test]
-    fn test_validate_correct_invalid_length_long() {
-        let err = validate("abcdef", &[], "").unwrap_err();
-        assert_eq!(err, SolverError::InvalidLength(6));
-    }
+    validate_error!(test_validate_correct_invalid_length_short, "abc", &[], "" => SolverError::InvalidLength(3));
+    validate_error!(test_validate_correct_invalid_length_long, "abcdef", &[], "" => SolverError::InvalidLength(6));
 
     #[test]
     fn test_validate_misplaced_valid() {
@@ -117,47 +127,13 @@ mod tests {
         assert_eq!(misplaced, vec!["a    "]);
     }
 
-    #[test]
-    fn test_validate_misplaced_invalid_length() {
-        let err = validate("     ", &["abc"], "").unwrap_err();
-        assert_eq!(err, SolverError::InvalidLength(3));
-    }
-
-    #[test]
-    fn test_validate_misplaced_invalid_character() {
-        let err = validate("     ", &["a.b.d"], "").unwrap_err();
-        assert_eq!(err, SolverError::InvalidCharacter('.'));
-    }
-
-    #[test]
-    fn test_validate_all_empty() {
-        let result = validate("     ", &[], "");
-        assert_eq!(result.unwrap_err(), SolverError::EmptyInputs);
-    }
-
-    #[test]
-    fn test_validate_not_all_empty_correct() {
-        let result = validate("a    ", &[], "");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_not_all_empty_misplaced() {
-        let result = validate("     ", &["a    "], "");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_not_all_empty_excluded() {
-        let result = validate("     ", &[], "a");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_multiple_errors_first_error() {
-        let err = validate("abc", &["def"], "ghi.jkl").unwrap_err();
-        assert_eq!(err, SolverError::InvalidLength(3));
-    }
+    validate_error!(test_validate_misplaced_invalid_length, "     ", &["abc"], "" => SolverError::InvalidLength(3));
+    validate_error!(test_validate_misplaced_invalid_character, "     ", &["a.b.d"], "" => SolverError::InvalidCharacter('.'));
+    validate_error!(test_validate_all_empty, "     ", &[], "" => SolverError::EmptyInputs);
+    validate_ok!(test_validate_not_all_empty_correct, "a    ", &[], "");
+    validate_ok!(test_validate_not_all_empty_misplaced, "     ", &["a    "], "");
+    validate_ok!(test_validate_not_all_empty_excluded, "     ", &[], "a");
+    validate_error!(test_validate_multiple_errors_first_error, "abc", &["def"], "ghi.jkl" => SolverError::InvalidLength(3));
 
     #[test]
     fn test_is_correct_empty_all_spaces() {

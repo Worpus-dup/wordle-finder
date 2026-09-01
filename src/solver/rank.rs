@@ -1,4 +1,4 @@
-use crate::solver::validator::UNKNOWN;
+use crate::solver::bitmask::WordBitmask;
 use crate::words::LETTER_FREQ;
 
 pub fn rank<'a>(
@@ -7,40 +7,31 @@ pub fn rank<'a>(
     misplaced: &[&str],
     excluded: &str,
 ) -> Vec<&'a str> {
-    let guessed = collect_guessed(correct, misplaced, excluded);
+    let guessed = collect_guessed_mask(correct, misplaced, excluded);
     let mut scored: Vec<(&str, u32)> = words
         .iter()
-        .map(|&w| (w, score_word(w, &guessed)))
+        .map(|&w| (w, score_word(w, guessed)))
         .collect();
-    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    scored.sort_by_key(|b| std::cmp::Reverse(b.1));
     scored.into_iter().map(|(w, _)| w).collect()
 }
 
-fn collect_guessed(correct: &str, misplaced: &[&str], excluded: &str) -> Vec<char> {
-    let mut guessed = Vec::new();
-    for c in correct.chars() {
-        if c != UNKNOWN && !guessed.contains(&c) {
-            guessed.push(c);
-        }
+fn collect_guessed_mask(correct: &str, misplaced: &[&str], excluded: &str) -> WordBitmask {
+    let mut mask = WordBitmask::new();
+    for c in correct.chars().chain(excluded.chars()) {
+        mask.push(c);
     }
     for pattern in misplaced {
         for c in pattern.chars() {
-            if c != UNKNOWN && !guessed.contains(&c) {
-                guessed.push(c);
-            }
+            mask.push(c);
         }
     }
-    for c in excluded.chars() {
-        if !guessed.contains(&c) {
-            guessed.push(c);
-        }
-    }
-    guessed
+    mask
 }
 
-fn score_word(word: &str, guessed: &[char]) -> u32 {
+fn score_word(word: &str, guessed: WordBitmask) -> u32 {
     word.chars()
-        .filter(|c| !guessed.contains(c))
+        .filter(|&c| !guessed.contains(c))
         .map(|c| LETTER_FREQ[(c as u8 - b'a') as usize])
         .sum()
 }
@@ -82,8 +73,8 @@ mod tests {
         let result = rank(words, "a    ", &[], "");
         for (i, word) in result.iter().enumerate() {
             if i > 0 {
-                let prev_score = score_word(result[i - 1], &['a']);
-                let curr_score = score_word(word, &['a']);
+                let prev_score = score_word(result[i - 1], "a".parse().unwrap());
+                let curr_score = score_word(word, "a".parse().unwrap());
                 assert!(prev_score >= curr_score);
             }
         }
@@ -95,8 +86,8 @@ mod tests {
         let result = rank(words, "     ", &[" a  "], "");
         for (i, word) in result.iter().enumerate() {
             if i > 0 {
-                let prev_score = score_word(result[i - 1], &['a']);
-                let curr_score = score_word(word, &['a']);
+                let prev_score = score_word(result[i - 1], "a".parse().unwrap());
+                let curr_score = score_word(word, "a".parse().unwrap());
                 assert!(prev_score >= curr_score);
             }
         }
@@ -108,10 +99,19 @@ mod tests {
         let result = rank(words, "     ", &[], "e");
         for (i, word) in result.iter().enumerate() {
             if i > 0 {
-                let prev_score = score_word(result[i - 1], &['e']);
-                let curr_score = score_word(word, &['e']);
+                let prev_score = score_word(result[i - 1], "e".parse().unwrap());
+                let curr_score = score_word(word, "e".parse().unwrap());
                 assert!(prev_score >= curr_score);
             }
         }
+    }
+
+    #[test]
+    fn test_collect_guessed_mask() {
+        let mask = collect_guessed_mask("a  b", &[" c"], "d");
+        for &letter in &['a', 'b', 'c', 'd'] {
+            assert!(mask.contains(letter));
+        }
+        assert!(!mask.contains('e'));
     }
 }

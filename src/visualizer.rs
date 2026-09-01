@@ -9,17 +9,21 @@ pub fn init() {
 
     let input_doc = document.clone();
     let input_closure = Closure::<dyn FnMut(web_sys::Event)>::wrap(Box::new(move |event| {
-        handle_input(&input_doc);
-        auto_advance(&input_doc, &event);
+        let _ = handle_input(&input_doc);
+        let _ = auto_advance(&input_doc, &event);
     }));
     document
         .add_event_listener_with_callback("input", input_closure.as_ref().unchecked_ref())
         .expect("failed to add input listener");
+    // Intentionally leaks the closure for the lifetime of the page. The WASM
+    // runtime needs this closure to outlive `init()` so the browser can keep
+    // invoking it as the event listener; dropping it here would invalidate the
+    // listener. This leak is required by the wasm-bindgen `Closure` contract.
     input_closure.forget();
 
     let key_doc = document.clone();
     let key_closure = Closure::<dyn FnMut(web_sys::Event)>::wrap(Box::new(move |event| {
-        backspace_navigate(&key_doc, &event);
+        let _ = backspace_navigate(&key_doc, &event);
     }));
     document
         .add_event_listener_with_callback("keydown", key_closure.as_ref().unchecked_ref())
@@ -28,7 +32,7 @@ pub fn init() {
 
     let click_doc = document.clone();
     let click_closure = Closure::<dyn FnMut(web_sys::Event)>::wrap(Box::new(move |event| {
-        handle_click(&click_doc, &event);
+        let _ = handle_click(&click_doc, &event);
     }));
     document
         .add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())
@@ -36,13 +40,9 @@ pub fn init() {
     click_closure.forget();
 }
 
-fn handle_click(document: &web_sys::Document, event: &web_sys::Event) {
-    let Some(target) = event.target() else {
-        return;
-    };
-    let Ok(target) = target.dyn_into::<web_sys::Element>() else {
-        return;
-    };
+fn handle_click(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
+    let target = event.target()?;
+    let target = target.dyn_into::<web_sys::Element>().ok()?;
 
     if target.id() == "add-row" {
         add_row(document);
@@ -53,48 +53,41 @@ fn handle_click(document: &web_sys::Document, event: &web_sys::Event) {
     } else if target.id() == "clear-all" {
         clear_all(document);
     }
+    Some(())
 }
 
-fn add_row(document: &web_sys::Document) {
-    let Some(rows) = document.get_element_by_id("misplaced-rows") else {
-        return;
-    };
+fn add_row(document: &web_sys::Document) -> Option<()> {
+    let rows = document.get_element_by_id("misplaced-rows")?;
     if rows.children().length() >= 5 {
-        return;
+        return None;
     }
-    let Some(first) = rows.first_element_child() else {
-        return;
-    };
-    let Ok(clone) = first.clone_node_with_deep(true) else {
-        return;
-    };
-    let Ok(clone_el) = clone.dyn_into::<web_sys::Element>() else {
-        return;
-    };
-    clear_row_inputs(&clone_el);
+    let first = rows.first_element_child()?;
+    let clone = first.clone_node_with_deep(true).ok()?;
+    let clone_el = clone.dyn_into::<web_sys::Element>().ok()?;
+    let _ = clear_row_inputs(&clone_el);
     let _ = rows.append_child(&clone_el);
+    Some(())
 }
 
-fn remove_row(document: &web_sys::Document, row: &web_sys::Element) {
-    let Some(rows) = document.get_element_by_id("misplaced-rows") else {
-        return;
-    };
+fn remove_row(document: &web_sys::Document, row: &web_sys::Element) -> Option<()> {
+    let rows = document.get_element_by_id("misplaced-rows")?;
     if rows.children().length() > 1 {
-        let _ = row.remove();
+        row.remove();
     } else {
-        clear_row_inputs(row);
+        let _ = clear_row_inputs(row);
     }
-    handle_input(document);
+    let _ = handle_input(document);
+    Some(())
 }
 
 fn clear_all(document: &web_sys::Document) {
     for input in get_tile_inputs(document) {
         input.set_value("");
     }
-    if let Ok(Some(node)) = document.query_selector("#excluded-letters input") {
-        if let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>() {
-            input.set_value("");
-        }
+    if let Ok(Some(node)) = document.query_selector("#excluded-letters input")
+        && let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>()
+    {
+        input.set_value("");
     }
     if let Some(error) = document.get_element_by_id("error") {
         error.set_text_content(None);
@@ -105,81 +98,70 @@ fn clear_all(document: &web_sys::Document) {
     }
 }
 
-fn clear_row_inputs(row: &web_sys::Element) {
-    if let Ok(inputs) = row.query_selector_all("input") {
-        for i in 0..inputs.length() {
-            if let Some(node) = inputs.item(i) {
-                if let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>() {
-                    input.set_value("");
-                }
-            }
+fn clear_row_inputs(row: &web_sys::Element) -> Option<()> {
+    let inputs = row.query_selector_all("input").ok()?;
+    for i in 0..inputs.length() {
+        if let Some(node) = inputs.item(i)
+            && let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>()
+        {
+            input.set_value("");
         }
     }
+    Some(())
 }
 
 fn get_tile_inputs(document: &web_sys::Document) -> Vec<web_sys::HtmlInputElement> {
     let mut inputs = Vec::new();
     if let Ok(list) = document.query_selector_all(".word-row input") {
         for i in 0..list.length() {
-            if let Some(node) = list.item(i) {
-                if let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>() {
-                    inputs.push(input);
-                }
+            if let Some(node) = list.item(i)
+                && let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>()
+            {
+                inputs.push(input);
             }
         }
     }
     inputs
 }
 
-fn auto_advance(document: &web_sys::Document, event: &web_sys::Event) {
-    let Some(target) = event.target() else {
-        return;
-    };
-    let Ok(target) = target.dyn_into::<web_sys::HtmlInputElement>() else {
-        return;
-    };
+fn auto_advance(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
+    let target = event.target()?;
+    let target = target.dyn_into::<web_sys::HtmlInputElement>().ok()?;
     let inputs = get_tile_inputs(document);
-    let Some(index) = inputs.iter().position(|i| i == &target) else {
-        return;
-    };
+    let index = inputs.iter().position(|i| i == &target)?;
     if target.value().is_empty() {
-        return;
+        return None;
     }
     if index + 1 < inputs.len() {
         let _ = inputs[index + 1].focus();
     }
+    Some(())
 }
 
-fn backspace_navigate(document: &web_sys::Document, event: &web_sys::Event) {
-    let Some(keyboard) = event.dyn_ref::<web_sys::KeyboardEvent>() else {
-        return;
-    };
+fn backspace_navigate(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
+    let keyboard = event.dyn_ref::<web_sys::KeyboardEvent>()?;
     if keyboard.key() != "Backspace" {
-        return;
+        return None;
     }
-    let Some(target) = event.target() else {
-        return;
-    };
-    let Ok(target) = target.dyn_into::<web_sys::HtmlInputElement>() else {
-        return;
-    };
+    let target = event.target()?;
+    let target = target.dyn_into::<web_sys::HtmlInputElement>().ok()?;
     let inputs = get_tile_inputs(document);
-    let Some(index) = inputs.iter().position(|i| i == &target) else {
-        return;
-    };
+    let index = inputs.iter().position(|i| i == &target)?;
     if !target.value().is_empty() {
-        return;
+        return None;
     }
     if index > 0 {
         let _ = inputs[index - 1].focus();
     }
+    Some(())
 }
 
-fn handle_input(document: &web_sys::Document) {
+fn handle_input(document: &web_sys::Document) -> Option<()> {
     let correct = read_correct(document);
     let misplaced = read_misplaced(document);
     let excluded = read_excluded(document);
 
+    #[cfg(debug_assertions)]
     web_sys::console::log_3(
         &format!("'{correct}'").into(),
         &format!("'{}'", misplaced.join("', '")).into(),
@@ -198,6 +180,7 @@ fn handle_input(document: &web_sys::Document) {
             web_sys::console::error_1(&e.to_string().into());
         }
     }
+    Some(())
 }
 
 fn show_error(document: &web_sys::Document, message: &str) {
@@ -243,21 +226,21 @@ fn read_misplaced(document: &web_sys::Document) -> Vec<String> {
     };
     let mut patterns = Vec::new();
     for i in 0..rows.length() {
-        if let Some(node) = rows.item(i) {
-            if let Ok(row) = node.dyn_into::<web_sys::Element>() {
-                let tiles = collect_tile_values(row.query_selector_all("input"));
-                patterns.push(tiles_to_pattern(&tiles));
-            }
+        if let Some(node) = rows.item(i)
+            && let Ok(row) = node.dyn_into::<web_sys::Element>()
+        {
+            let tiles = collect_tile_values(row.query_selector_all("input"));
+            patterns.push(tiles_to_pattern(&tiles));
         }
     }
     patterns
 }
 
 fn read_excluded(document: &web_sys::Document) -> String {
-    if let Ok(Some(node)) = document.query_selector("#excluded-letters input") {
-        if let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>() {
-            return sanitize_excluded(&input.value());
-        }
+    if let Ok(Some(node)) = document.query_selector("#excluded-letters input")
+        && let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>()
+    {
+        return sanitize_excluded(&input.value());
     }
     String::new()
 }
@@ -268,10 +251,10 @@ fn collect_tile_values(node_list: Result<web_sys::NodeList, wasm_bindgen::JsValu
     };
     let mut tiles = Vec::with_capacity(node_list.length() as usize);
     for i in 0..node_list.length() {
-        if let Some(node) = node_list.item(i) {
-            if let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>() {
-                tiles.push(input.value());
-            }
+        if let Some(node) = node_list.item(i)
+            && let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>()
+        {
+            tiles.push(input.value());
         }
     }
     tiles
