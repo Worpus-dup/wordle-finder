@@ -17,9 +17,9 @@
     --color-text-tile: #ffffff;
 
     /* Layout */
-    --tile-size: 3rem;
+    --tile-size: min(4rem, 15vw);
     --tile-gap: 4px;
-    --tile-font: 1.5rem;
+    --tile-font: calc(1.5rem + min(1vw, 1vh));
 }
 
 body {
@@ -56,11 +56,13 @@ main {
 h1 {
     font-size: 2rem;
     margin-bottom: 1rem;
+    text-align: center;
 }
 
 h2 {
     font-size: 1.5rem;
     margin-bottom: 1rem;
+    text-align: center;
 }
 
 fieldset {
@@ -88,9 +90,9 @@ legend {
     font-size: var(--tile-font);
     font-weight: bold;
     text-transform: uppercase;
-    background: var(--color-tile);
+    background: var(--color-bg);
     color: var(--color-text);
-    border: none;
+    border: 1px solid var(--color-tile);
     outline: none;
 }
 
@@ -105,7 +107,7 @@ legend {
 }
 
 .word-row input:focus {
-    outline: 2px solid var(--color-absent);
+    border-color: var(--color-absent);
 }
 
 button {
@@ -137,12 +139,33 @@ button:hover {
     min-height: 200px;
     border: 1px solid var(--color-tile);
     padding: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-content: flex-start;
+    justify-content: space-around;
+}
+
+#results > div {
+    background: var(--color-tile);
+    border: 1px solid var(--color-tile);
+    padding: 0.5rem 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    min-width: calc(1.5rem + 6ch);
+    text-align: center;
 }
 
 #error {
     color: var(--color-misplaced);
     font-weight: bold;
     margin-bottom: 0.5rem;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 0.25rem;
+}
+
+#error::before {
+    content: "> ";
 }
 
 .remove-row {

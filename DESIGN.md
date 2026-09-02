@@ -307,8 +307,30 @@ In the mobile version layout is vertical where inputs are above the outputs. In 
 
 Button for clearing all of inputs are expected.
 
-#### Misplaced Letters Input
+### Headers
 
-As there are 1 or more input fields for misplaced letters, there must be mechanism to add/remove inputs. Maximum number of input "words" is 5 (max guesses in Wordle - 1). We propose a small button to the right of each "word" that will delete this "word" and a big button at the bottom of the column that will add new "word" input.
+Headers on the page are centred.
+
+### Tile Inputs
+
+Tiles are presented as bordered squares on the background colour. Their size and the letter size inside them scale with the viewport and the user font preferences so the block fits on any platform and narrow screens.
+
+Filled tiles are coloured by the type of the "word" they belong to: correct-letter tiles use the correct colour, misplaced-letter tiles use the misplaced colour. The focused tile is indicated by its border/outline taking the absent colour.
+
+### Misplaced Letters
+
+As there are 1 or more input fields for misplaced letters, there must be a mechanism to add/remove inputs. Maximum number of input "words" is 5 (max guesses in Wordle - 1). It is proposed to have a small button to the right of each "word" that deletes this "word" and a big button at the bottom of the column that adds a new "word" input.
 
 Deletion logic is simple "delete current 'word' input if there more than 1 input left, otherwise clear it".
+
+### Excluded Letters
+
+Excluded letters are entered as a single text input field accepting a string of letters.
+
+### Results
+
+The possible words are shown in the outputs area as equal-width boxes on the tile colour, arranged side-by-side and evenly spaced, wrapping onto further lines as needed. Each word is uppercased and its text is centred within its box.
+
+### Error Field
+
+A single error message appears above the results when the current input cannot be solved. It uses a palette colour that signals attention is needed rather than an error, is prefixed with ">" and is underlined with a thin line of the same colour.
