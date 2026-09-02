@@ -1,3 +1,4 @@
+use crate::solver::error::SolverError;
 use crate::solver::validator::sanitize_letter;
 use crate::solver::validator::UNKNOWN;
 use wasm_bindgen::prelude::*;
@@ -9,8 +10,7 @@ pub fn init() {
 
     let input_doc = document.clone();
     let input_closure = Closure::<dyn FnMut(web_sys::Event)>::wrap(Box::new(move |event| {
-        let _ = handle_input(&input_doc);
-        let _ = auto_advance(&input_doc, &event);
+        let _ = handle_input(&input_doc, &event);
     }));
     document
         .add_event_listener_with_callback("input", input_closure.as_ref().unchecked_ref())
@@ -76,7 +76,7 @@ fn remove_row(document: &web_sys::Document, row: &web_sys::Element) -> Option<()
     } else {
         let _ = clear_row_inputs(row);
     }
-    let _ = handle_input(document);
+    let _ = refresh_results(document);
     Some(())
 }
 
@@ -124,14 +124,9 @@ fn get_tile_inputs(document: &web_sys::Document) -> Vec<web_sys::HtmlInputElemen
     inputs
 }
 
-fn auto_advance(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
-    let target = event.target()?;
-    let target = target.dyn_into::<web_sys::HtmlInputElement>().ok()?;
+fn focus_next(document: &web_sys::Document, target: &web_sys::HtmlInputElement) -> Option<()> {
     let inputs = get_tile_inputs(document);
-    let index = inputs.iter().position(|i| i == &target)?;
-    if target.value().is_empty() {
-        return None;
-    }
+    let index = inputs.iter().position(|i| i == target)?;
     if index + 1 < inputs.len() {
         let _ = inputs[index + 1].focus();
     }
@@ -156,7 +151,52 @@ fn backspace_navigate(document: &web_sys::Document, event: &web_sys::Event) -> O
     Some(())
 }
 
-fn handle_input(document: &web_sys::Document) -> Option<()> {
+fn handle_input(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
+    let target = event.target()?;
+    let target = target.dyn_into::<web_sys::HtmlInputElement>().ok()?;
+
+    if target
+        .unchecked_ref::<web_sys::Element>()
+        .closest(".word-row")
+        .map(|el| el.is_none())
+        .unwrap_or(true)
+    {
+        let raw = target.value();
+        let sanitized = sanitize_excluded(&raw);
+        if sanitized != raw {
+            target.set_value(&sanitized);
+        }
+        refresh_results(document);
+        if let Some(c) = first_dropped_char(&raw)
+            && !is_error_visible(document)
+        {
+            show_error(document, &SolverError::InvalidCharacter(c).to_string());
+        }
+        // We are finished here
+        return Some(());
+    }
+
+    match classify_tile(&target.value()) {
+        TileValue::Valid(ch) => {
+            target.set_value(&ch.to_string());
+            let _ = focus_next(document, &target);
+            refresh_results(document)
+        }
+        TileValue::Space => {
+            target.set_value("");
+            let _ = focus_next(document, &target);
+            refresh_results(document)
+        }
+        TileValue::Empty => refresh_results(document),
+        TileValue::Invalid(c) => {
+            target.set_value("");
+            show_error(document, &SolverError::InvalidCharacter(c).to_string());
+            Some(())
+        }
+    }
+}
+
+fn refresh_results(document: &web_sys::Document) -> Option<()> {
     let correct = read_correct(document);
     let misplaced = read_misplaced(document);
     let excluded = read_excluded(document);
@@ -195,6 +235,13 @@ fn hide_error(document: &web_sys::Document) {
         el.set_text_content(None);
         let _ = el.set_attribute("hidden", "");
     }
+}
+
+fn is_error_visible(document: &web_sys::Document) -> bool {
+    document
+        .get_element_by_id("error")
+        .map(|el| !el.has_attribute("hidden"))
+        .unwrap_or(false)
 }
 
 fn render_results(document: &web_sys::Document, words: &[String]) {
@@ -272,6 +319,10 @@ fn sanitize_excluded(input: &str) -> String {
         .collect()
 }
 
+fn first_dropped_char(input: &str) -> Option<char> {
+    input.chars().find(|c| sanitize_letter(*c, false).is_err())
+}
+
 pub fn tiles_to_pattern<T: AsRef<str>>(tiles: &[T]) -> String {
     tiles
         .iter()
@@ -279,9 +330,65 @@ pub fn tiles_to_pattern<T: AsRef<str>>(tiles: &[T]) -> String {
         .collect()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TileValue {
+    Empty,
+    Space,
+    Valid(char),
+    Invalid(char),
+}
+
+fn classify_tile(value: &str) -> TileValue {
+    match value.chars().next() {
+        None => TileValue::Empty,
+        Some(c) if c == UNKNOWN => TileValue::Space,
+        Some(c) => match sanitize_letter(c, false) {
+            Ok(ch) => TileValue::Valid(ch),
+            Err(_) => TileValue::Invalid(c),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    macro_rules! classify_tile_case {
+        ($name:ident, $input:expr => $expected:expr) => {
+            #[test]
+            fn $name() {
+                assert_eq!(classify_tile($input), $expected);
+            }
+        };
+    }
+
+    classify_tile_case!(test_classify_tile_empty, "" => TileValue::Empty);
+    classify_tile_case!(test_classify_tile_space, " " => TileValue::Space);
+    classify_tile_case!(test_classify_tile_valid, "a" => TileValue::Valid('a'));
+    classify_tile_case!(test_classify_tile_uppercase_lowered, "A" => TileValue::Valid('a'));
+    classify_tile_case!(test_classify_tile_symbol, "." => TileValue::Invalid('.'));
+    classify_tile_case!(test_classify_tile_non_ascii, "ñ" => TileValue::Invalid('ñ'));
+    classify_tile_case!(test_classify_tile_digit, "1" => TileValue::Invalid('1'));
+    classify_tile_case!(test_classify_tile_paste_first_valid, "ab" => TileValue::Valid('a'));
+    classify_tile_case!(test_classify_tile_paste_first_space, " a" => TileValue::Space);
+    classify_tile_case!(test_classify_tile_paste_first_invalid, "!x" => TileValue::Invalid('!'));
+
+    macro_rules! first_dropped_char_case {
+        ($name:ident, $input:expr => $expected:expr) => {
+            #[test]
+            fn $name() {
+                assert_eq!(first_dropped_char($input), $expected);
+            }
+        };
+    }
+
+    first_dropped_char_case!(test_first_dropped_char_none, "abc" => None);
+    first_dropped_char_case!(test_first_dropped_char_uppercase_no_drop, "ABC" => None);
+    first_dropped_char_case!(test_first_dropped_char_empty, "" => None);
+    first_dropped_char_case!(test_first_dropped_char_dot, "ab.c" => Some('.'));
+    first_dropped_char_case!(test_first_dropped_char_space, "a b" => Some(' '));
+    first_dropped_char_case!(test_first_dropped_char_non_ascii, "ñbc" => Some('ñ'));
+    first_dropped_char_case!(test_first_dropped_char_first_wins, "ab.c ñ" => Some('.'));
 
     #[test]
     fn test_tiles_to_pattern_all_empty() {

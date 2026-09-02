@@ -105,10 +105,17 @@ That said array without padding is preferable due to raw size of data 11.3kb wit
 
 Input validation happens at two layers:
 
-- **Visualizer (user-facing)**: Sanitises incorrect data and replaces the original rather than blocking. Tile inputs treat non-alpha/invalid characters as placeholders (`UNKNOWN`) and lowercase uppercase letters; the excluded-letters input drops invalid characters and lowercases the rest.
+- **Visualizer (user-facing)**: Sanitises incorrect data and reflects it in the UI instead of proceeding silently.
+  - Tile inputs: a valid letter (A-Z) is accepted, lowercased, and advances to the next tile; a space is treated as a blank and also advances; any other character is rejected — the tile is cleared, a message is shown, and neither navigation advance nor solve runs.
+  - Excluded-letters input: invalid characters are dropped and the displayed value is sanitised in place, with a message naming the first dropped character; uppercase letters are lowercased silently.
+  - Backspace navigation and the tab/row order are unchanged.
 - **Solver (defensive)**: Even though it is expected to receive already-sanitised input, it must recognize any invalid input and return an error value with the reason to the caller, rather than silently proceeding.
 
-The sanitise-and-replace behaviour described for the visualizer is the preferred end-user experience.
+The sanitise-and-reflect behaviour described for the visualizer is the preferred end-user experience.
+
+As pasting behaviour is outside the current scope, current functionality when pasting into a tile is to keep the first character only.
+
+Design note: overwriting a filled tile with a rejected character clears the tile but leaves previously computed results on screen; they refresh on the next valid input.
 
 ### Word Bank
 
@@ -165,7 +172,7 @@ Outputs are list of the guesses outputted by the solver that visualizer formats 
 
 There are no major algorithms involved. Only checks for data correctness: expected format, boundary checks.
 
-If any error detected in user inputs, sanitise incorrect data and replace the original. If error occurred in the solver or too critical to continue processing, show error and stop processing. Processing should restart when inputs are corrected.
+Rejected input is made visible to the user: a message is shown via the error element and the offending tile is cleared rather than silently accepted. Advancing to the next tile happens only when a valid letter or a blank (space) is entered, so a rejected character does not advance the tile or trigger a new solve. If error occurred in the solver or too critical to continue processing, show error and stop processing. Processing should restart when inputs are corrected.
 
 #### Dependencies on Other Components or External Systems
 
@@ -201,6 +208,7 @@ pub enum SolverError {
 #### User-Facing Errors
 - Display a single error message element (`#error`) above the results area.
 - On any `solve()` error, show the error message (e.g. "All inputs are empty") and clear the results; hide it on the next successful solve.
+- Sanitisation feedback reuses the same element to inform the user that input was rejected or dropped; these messages do not clear the results. If a solver error is already shown by the same input event, it takes precedence and the sanitisation message is not shown.
 - Allow immediate correction without page reset.
 
 ## Testing Strategy
@@ -317,6 +325,8 @@ Tiles are presented as bordered squares on the background colour. Their size and
 
 Filled tiles are coloured by the type of the "word" they belong to: correct-letter tiles use the correct colour, misplaced-letter tiles use the misplaced colour. The focused tile is indicated by its border/outline taking the absent colour.
 
+Typing a valid letter or a space (blank) advances focus to the next tile; a rejected character clears the tile and does not advance. See "User Input Validation".
+
 ### Misplaced Letters
 
 As there are 1 or more input fields for misplaced letters, there must be a mechanism to add/remove inputs. Maximum number of input "words" is 5 (max guesses in Wordle - 1). It is proposed to have a small button to the right of each "word" that deletes this "word" and a big button at the bottom of the column that adds a new "word" input.
@@ -333,4 +343,4 @@ The possible words are shown in the outputs area as equal-width boxes on the til
 
 ### Error Field
 
-A single error message appears above the results when the current input cannot be solved. It uses a palette colour that signals attention is needed rather than an error, is prefixed with ">" and is underlined with a thin line of the same colour.
+A single message element appears above the results. It is shown when the current input cannot be solved and when part of the input was rejected or dropped during sanitisation. It uses a palette colour that signals attention is needed rather than an error, is prefixed with ">" and is underlined with a thin line of the same colour.
