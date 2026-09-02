@@ -1,6 +1,8 @@
 [package]
 name = "wordle-finder"
 version = "0.1.0"
+authors = ["Eugene Turov <geny0turov@gmail.com>"]
+license = "MIT"
 edition = "2024"
 
 [dependencies]

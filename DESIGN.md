@@ -344,3 +344,10 @@ The possible words are shown in the outputs area as equal-width boxes on the til
 ### Error Field
 
 A single message element appears above the results. It is shown when the current input cannot be solved and when part of the input was rejected or dropped during sanitisation. It uses a palette colour that signals attention is needed rather than an error, is prefixed with ">" and is underlined with a thin line of the same colour.
+
+### Footer
+
+A static footer appears directly after the main content and spans the page width in all layouts; it is not pinned to the viewport. Its text is centred and styled as low-emphasis content in the absent colour. It contains:
+
+- An attribution line — "Designed by <author> and coded by Big Pickle™" — where `<author>` is the design author's display name, kept in sync with the `authors` field in `Cargo.toml`.
+- A copyright line — "© 2026 <author>" — where `<author>` matches the `authors` field (display name and email).
