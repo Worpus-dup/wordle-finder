@@ -144,3 +144,29 @@ cargo build --target wasm32-unknown-unknown  # UI path untouched
   (`never_exclude` mask). `ponytail:` limitation — see comment in
   `src/bin/benchmark.rs`.
 - Dropped `data/guesses.txt` probing (scope-limit held).
+
+**6. Off-pool probing experiment (follow-up)**
+- `Strategy::Probe`: rank candidate guesses from the full `data/guesses.txt`
+  dictionary by expected info gain (distinct unguessed letters × answer-pool
+  frequency, pool words preferred on ties), probing only while `pool.len() >
+  stop_prob`, then in-pool. Same constraint/feedback pipeline as Pool.
+- Results (2315 answers, ≤6 guesses, release):
+
+  | strategy           | win%   | avg | 7+  |
+  |--------------------|--------|-----|-----|
+  | Pool               | 98.6%  | 3.65| 32  |
+  | Probe stop_prob=1  | 92.1%  | 3.76| 184 |
+  | Probe stop_prob=3  | 97.5%  | 3.69| 58  |
+  | Probe stop_prob=6  | 99.1%  | 3.68| 20  |
+  | Probe stop_prob=10 | 98.9%  | 3.67| 26  |
+  | Probe stop_prob=15 | 98.9%  | 3.66| 25  |
+  | Probe stop_prob=25 | 98.8%  | 3.66| 28  |
+  | Probe stop_prob=40 | 98.7%  | 3.67| 29  |
+
+- Verdict: probing does **not** lower average guesses (Pool 3.65 beats every
+  probe threshold). It nudges win% up at most +0.5pp (99.1% vs 98.6%,
+  stop_prob=6, twelve more wins) and rescues endgames (7+ 32→20) but trades
+  away 2/3-guess wins. Over-aggressive probing (stop_prob=1/3) is much worse.
+  → Keep the shipped algorithm in-pool. Naive info-score probe; an
+  expected-pool-reduction (entropy) probe is the next rung if win% is ever the
+  sole goal — also bumps the shipped `data/guesses.txt` deadness note.
