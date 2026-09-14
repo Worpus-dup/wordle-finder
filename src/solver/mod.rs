@@ -19,13 +19,13 @@ pub fn solve(
 ) -> Result<Vec<String>, SolverError> {
     let (correct, misplaced, excluded) = validate(correct_letters, misplaced_letters, excluded_letters)?;
     let misplaced_refs: Vec<&str> = misplaced.iter().map(|s| s.as_str()).collect();
-    let words = words();
+    let words = all_words();
     let filtered = filter(words, &correct, &misplaced_refs, &excluded);
     let ranked = rank(&filtered, &correct, &misplaced_refs, &excluded);
     Ok(ranked.into_iter().map(String::from).collect())
 }
 
-fn words() -> &'static [&'static str] {
+pub fn all_words() -> &'static [&'static str] {
     WORDS_CACHE.get_or_init(|| {
         crate::words::WORDS
             .chunks(5)
@@ -114,8 +114,8 @@ mod tests {
 
     #[test]
     fn test_words_cache_returns_same_backing() {
-        let a = words();
-        let b = words();
+        let a = all_words();
+        let b = all_words();
         assert_eq!(a.as_ptr(), b.as_ptr());
     }
 }

@@ -1,6 +1,6 @@
-use crate::solver::error::SolverError;
-use crate::solver::validator::sanitize_letter;
-use crate::solver::validator::UNKNOWN;
+use wordle_finder::solver::error::SolverError;
+use wordle_finder::solver::validator::sanitize_letter;
+use wordle_finder::solver::validator::UNKNOWN;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -202,7 +202,7 @@ fn refresh_results(document: &web_sys::Document) -> Option<()> {
     let excluded = read_excluded(document);
     let misplaced_refs: Vec<&str> = misplaced.iter().map(String::as_str).collect();
 
-    match crate::solver::solve(&correct, &misplaced_refs, &excluded) {
+    match wordle_finder::solver::solve(&correct, &misplaced_refs, &excluded) {
         Ok(words) => {
             hide_error(document);
             render_results(document, &words);
