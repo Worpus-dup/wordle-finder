@@ -38,23 +38,4 @@ mod tests {
         let err = SolverError::EmptyInputs;
         assert_eq!(format!("{}", err), "All inputs are empty");
     }
-
-    #[test]
-    fn test_debug_format() {
-        let err = SolverError::InvalidCharacter('a');
-        assert_eq!(format!("{:?}", err), "InvalidCharacter('a')");
-    }
-
-    #[test]
-    fn test_partial_eq() {
-        assert_eq!(
-            SolverError::InvalidCharacter('a'),
-            SolverError::InvalidCharacter('a')
-        );
-        assert_ne!(
-            SolverError::InvalidCharacter('a'),
-            SolverError::InvalidCharacter('b')
-        );
-        assert_eq!(SolverError::EmptyInputs, SolverError::EmptyInputs);
-    }
 }

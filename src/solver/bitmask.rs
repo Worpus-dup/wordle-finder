@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct WordBitmask(u32);
 
@@ -19,21 +17,17 @@ impl WordBitmask {
     }
 }
 
-impl FromStr for WordBitmask {
-    type Err = ();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn mask_of(s: &str) -> WordBitmask {
         let mut mask = WordBitmask::new();
         for c in s.chars() {
             mask.push(c);
         }
-        Ok(mask)
+        mask
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 
     #[test]
     fn test_new_is_empty() {
@@ -73,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_contains_ignores_non_lowercase() {
-        let mask = WordBitmask::from_str("a").unwrap();
+        let mask = mask_of("a");
         assert!(!mask.contains('A'));
         assert!(!mask.contains(' '));
         assert!(!mask.contains('.'));
@@ -85,16 +79,7 @@ mod tests {
         mask.push('e');
         mask.push('e');
         assert!(mask.contains('e'));
-        assert_eq!(mask, WordBitmask::from_str("e").unwrap());
-    }
-
-    #[test]
-    fn test_from_str_builds_mask() {
-        let mask = WordBitmask::from_str("a c").unwrap();
-        assert!(mask.contains('a'));
-        assert!(mask.contains('c'));
-        assert!(!mask.contains('b'));
-        assert!(!mask.contains(' '));
+        assert_eq!(mask, mask_of("e"));
     }
 
     #[test]

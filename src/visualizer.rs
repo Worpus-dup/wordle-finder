@@ -200,13 +200,6 @@ fn refresh_results(document: &web_sys::Document) -> Option<()> {
     let correct = read_correct(document);
     let misplaced = read_misplaced(document);
     let excluded = read_excluded(document);
-
-    #[cfg(debug_assertions)]
-    web_sys::console::log_3(
-        &format!("'{correct}'").into(),
-        &format!("'{}'", misplaced.join("', '")).into(),
-        &format!("'{excluded}'").into(),
-    );
     let misplaced_refs: Vec<&str> = misplaced.iter().map(String::as_str).collect();
 
     match crate::solver::solve(&correct, &misplaced_refs, &excluded) {

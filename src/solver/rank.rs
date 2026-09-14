@@ -40,6 +40,14 @@ fn score_word(word: &str, guessed: WordBitmask) -> u32 {
 mod tests {
     use super::*;
 
+    fn mask_of(s: &str) -> WordBitmask {
+        let mut mask = WordBitmask::new();
+        for c in s.chars() {
+            mask.push(c);
+        }
+        mask
+    }
+
     #[test]
     fn test_rank_empty_input() {
         let result = rank(&[], "     ", &[], "");
@@ -73,8 +81,8 @@ mod tests {
         let result = rank(words, "a    ", &[], "");
         for (i, word) in result.iter().enumerate() {
             if i > 0 {
-                let prev_score = score_word(result[i - 1], "a".parse().unwrap());
-                let curr_score = score_word(word, "a".parse().unwrap());
+                let prev_score = score_word(result[i - 1], mask_of("a"));
+                let curr_score = score_word(word, mask_of("a"));
                 assert!(prev_score >= curr_score);
             }
         }
@@ -86,8 +94,8 @@ mod tests {
         let result = rank(words, "     ", &[" a  "], "");
         for (i, word) in result.iter().enumerate() {
             if i > 0 {
-                let prev_score = score_word(result[i - 1], "a".parse().unwrap());
-                let curr_score = score_word(word, "a".parse().unwrap());
+                let prev_score = score_word(result[i - 1], mask_of("a"));
+                let curr_score = score_word(word, mask_of("a"));
                 assert!(prev_score >= curr_score);
             }
         }
@@ -99,8 +107,8 @@ mod tests {
         let result = rank(words, "     ", &[], "e");
         for (i, word) in result.iter().enumerate() {
             if i > 0 {
-                let prev_score = score_word(result[i - 1], "e".parse().unwrap());
-                let curr_score = score_word(word, "e".parse().unwrap());
+                let prev_score = score_word(result[i - 1], mask_of("e"));
+                let curr_score = score_word(word, mask_of("e"));
                 assert!(prev_score >= curr_score);
             }
         }
