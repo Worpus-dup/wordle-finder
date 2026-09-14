@@ -133,8 +133,9 @@ cargo build --target wasm32-unknown-unknown  # UI path untouched
 - Pool scoring sums pool frequency over **distinct** not-yet-guessed letters.
 
 **4. Benchmark results (2315 real answers, ≤6 guesses, release)**
-- Static: win% 34.2% (791/2315), avg 4.18 wins, 1524 losses.
-- Pool:   win% 98.6% (2283/2315), avg 3.65 wins, 32 losses.
+- Static: win% 34.2% (791/2315), avg 4.18 wins, 1524 losses. *(Historical —
+  benchmark no longer runs a static arm; kept for the baseline record.)*
+- Pool:   win% 98.8% (2288/2315), avg 3.65 wins, 27 losses.
 
 **5. Benchmark internals**
 - `feedback()`: greens first, then yellows by remaining counts (Wordle-faithful).
@@ -143,6 +144,7 @@ cargo build --target wasm32-unknown-unknown  # UI path untouched
   green/yellow; otherwise a gray copy is just another avoided position
   (`never_exclude` mask). `ponytail:` limitation — see comment in
   `src/bin/benchmark.rs`.
+- Two-pass feedback (greens registered first) — see §8, bug fix.
 - Dropped `data/guesses.txt` probing (scope-limit held).
 
 **6. Off-pool probing experiment (follow-up)**
@@ -154,19 +156,73 @@ cargo build --target wasm32-unknown-unknown  # UI path untouched
 
   | strategy           | win%   | avg | 7+  |
   |--------------------|--------|-----|-----|
-  | Pool               | 98.6%  | 3.65| 32  |
-  | Probe stop_prob=1  | 92.1%  | 3.76| 184 |
-  | Probe stop_prob=3  | 97.5%  | 3.69| 58  |
-  | Probe stop_prob=6  | 99.1%  | 3.68| 20  |
-  | Probe stop_prob=10 | 98.9%  | 3.67| 26  |
-  | Probe stop_prob=15 | 98.9%  | 3.66| 25  |
-  | Probe stop_prob=25 | 98.8%  | 3.66| 28  |
-  | Probe stop_prob=40 | 98.7%  | 3.67| 29  |
+  | Pool               | 98.8%  | 3.65| 27  |
+  | Probe stop_prob=6  | 99.2%  | 3.68| 18  |
+  | Probe stop_prob=10 | 99.0%  | 3.67| 23  |
+  | Probe stop_prob=15 | 99.0%  | 3.67| 22  |
+  | Probe stop_prob=25 | 98.9%  | 3.67| 25  |
+  | Probe stop_prob=40 | 98.8%  | 3.67| 27  |
 
 - Verdict: probing does **not** lower average guesses (Pool 3.65 beats every
-  probe threshold). It nudges win% up at most +0.5pp (99.1% vs 98.6%,
-  stop_prob=6, twelve more wins) and rescues endgames (7+ 32→20) but trades
+  probe threshold). It nudges win% up at most +0.4pp (99.2% vs 98.8%,
+  stop_prob=6, nine more wins) and rescues endgames (7+ 27→18) but trades
   away 2/3-guess wins. Over-aggressive probing (stop_prob=1/3) is much worse.
   → Keep the shipped algorithm in-pool. Naive info-score probe; an
   expected-pool-reduction (entropy) probe is the next rung if win% is ever the
   sole goal — also bumps the shipped `data/guesses.txt` deadness note.
+
+**7. Pool-elimination scoring experiment (follow-up)**
+- `Strategy::Eliminate`: rank the pool of possible answers by expected shrinkage
+  — for each candidate guess, partition the pool by the Wordle feedback pattern
+  it would produce and minimize Σ group² (the expected surviving pool ≈
+  pool − eliminated). Applied for the first N rounds, then falls back to Pool.
+  Opening-round result is identical for all answers, so it's computed once.
+- Results (2315 answers, ≤6 guesses, release):
+
+  | strategy | win% | avg | 7+ |
+  |----------|------|-----|----|
+  | Pool     | 98.8%| 3.65| 27 |
+  | Eliminate rounds=1 | 98.7% | 3.67 | 31 |
+  | Eliminate rounds=2 | 97.7% | 3.64 | 53 |
+  | Eliminate rounds=3 | 96.9% | 3.61 | 71 |
+  | Eliminate always   | 96.8% | 3.61 | 75 |
+
+  > Eliminate rows are **historical** (see §8): the experiment's code was never
+  > committed and is not in the working tree; the rows were produced with the
+  > pre-fix single-pass `apply_feedback`. The gray-then-green bug costs every
+  > strategy ≈5 wins (Pool 32→27, §4), so eliminate's win% is understated by a
+  > similar margin at worst — the verdict (rejected; Pool's endgame edge) does
+  > not depend on it and stands.
+
+- Verdict: rejected. One opening elimination round is a wash (+1 win, +0.02
+  avg); more rounds trade win% away for a trivial avg dip. Pool's endgame edge
+  (winning small pools) is exactly what Σ-group² ranking undervalues. → Pool
+  stays shipped.
+- Probe strategy: **kept** in `src/bin/benchmark.rs` by decision (§8) after the
+  §7 cleanup note was evaluated against the working tree.
+
+**8. Project-state verification (follow-up)**
+
+Findings from a read-only audit pass and the fixes applied after it.
+
+- **Bug (fixed):** `apply_feedback` processed tiles in positional order, so a
+  doubled letter that was gray at an earlier position and green/yellow at a
+  later position in the *same guess* pushed the letter into global `excluded`
+  before the green registered it in `never_exclude` — leaving `excluded` and
+  `correct` contradictory and emptying the pool (certain loss). Single pass →
+  two-pass: all greens registered first, then yellows/grays. Impact: ≈5 losses
+  per strategy were this bug, not ranking (Pool 32→27, Probe stop6 20→18).
+  Rows in §4/§6 re-run after the fix; §7 rows are historical (see note there).
+- **Unused code (removed):** generated `WORD_COUNT` constant (only consumed by
+  `#[allow(dead_code)]`; zero reads) deleted from `build.rs` template and
+  `src/words.rs`. `RankVariant::Static` + static score path + `LETTER_FREQ`
+  remain, intentional — §4 baseline comparison and the rank unit test.
+- **Deviation (working tree vs §7):** the pool-elimination experiment's code
+  (`Strategy::Eliminate`, `pattern_key`, `elimination_score`) was never
+  committed and no stash/reflog holds it — §7's numbers are not reproducible
+  from the repo. The §7 end-state note claimed probe code + `data/guesses.txt`
+  loading were removed; that cleanup never landed in the tree. **Decision:
+  keep the probe strategy** (and the `guesses.txt` read it needs) so the §6
+  probe table stays reproducible from the committed benchmark.
+- **Working tree:** `README.md` (mention of OpenCode/Ponytail) and this file's
+  §7/§8 additions are uncommitted; `HEAD` has benchmark at b0a348c.

@@ -49,15 +49,18 @@ struct Constraints {
 // a known letter are just blocked at those positions. Per-position item counts
 // (real Wordle hard mode) would be the upgrade if the pool ever dies early.
 fn apply_feedback(state: &mut Constraints, guess: &str, tiles: [Tile; 5]) {
+    for (i, (g, t)) in guess.bytes().zip(tiles.iter()).enumerate() {
+        if *t == Tile::Green {
+            state.correct[i] = g as char;
+            state.never_exclude.push(g as char);
+        }
+    }
     let mut pattern = [' '; 5];
     for (i, (g, t)) in guess.bytes().zip(tiles.iter()).enumerate() {
         let c = g as char;
         let idx = (g - b'a') as usize;
         match t {
-            Tile::Green => {
-                state.correct[i] = c;
-                state.never_exclude.push(c);
-            }
+            Tile::Green => {}
             Tile::Yellow => {
                 state.never_exclude.push(c);
                 pattern[i] = c;
