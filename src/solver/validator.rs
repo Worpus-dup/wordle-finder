@@ -23,7 +23,36 @@ pub fn validate(
     let correct = validate_correct(correct_letters)?;
     let misplaced = validate_misplaced(misplaced_letters)?;
     let excluded = validate_excluded(excluded_letters)?;
+    if let Some(c) = conflicting_letter(&correct, &misplaced, &excluded) {
+        return Err(SolverError::ConflictingLetter(c));
+    }
+    if let Some((c, pos)) = conflicting_position(&correct, &misplaced) {
+        return Err(SolverError::ConflictingPosition(c, pos));
+    }
     Ok((correct, misplaced, excluded))
+}
+
+fn conflicting_letter(correct: &str, misplaced: &[String], excluded: &str) -> Option<char> {
+    let mut required = [false; 26];
+    for c in correct.chars().chain(misplaced.iter().flat_map(|p| p.chars())) {
+        if c != UNKNOWN {
+            required[(c as u8 - b'a') as usize] = true;
+        }
+    }
+    excluded
+        .chars()
+        .find(|&c| required[(c as u8 - b'a') as usize])
+}
+
+fn conflicting_position(correct: &str, misplaced: &[String]) -> Option<(char, usize)> {
+    for pattern in misplaced {
+        for (i, (g, m)) in correct.chars().zip(pattern.chars()).enumerate() {
+            if g != UNKNOWN && g == m {
+                return Some((g, i));
+            }
+        }
+    }
+    None
 }
 
 fn validate_correct(input: &str) -> Result<String, SolverError> {
@@ -130,6 +159,18 @@ mod tests {
     validate_error!(test_validate_misplaced_invalid_length, "     ", &["abc"], "" => SolverError::InvalidLength(3));
     validate_error!(test_validate_misplaced_invalid_character, "     ", &["a.b.d"], "" => SolverError::InvalidCharacter('.'));
     validate_error!(test_validate_all_empty, "     ", &[], "" => SolverError::EmptyInputs);
+
+    validate_error!(test_validate_conflict_correct_and_excluded, "a    ", &[], "a" => SolverError::ConflictingLetter('a'));
+    validate_error!(test_validate_conflict_misplaced_and_excluded, "     ", &["b    "], "b" => SolverError::ConflictingLetter('b'));
+    validate_error!(test_validate_conflict_first_match_wins, "a    ", &[], "ab" => SolverError::ConflictingLetter('a'));
+    validate_error!(test_validate_conflict_case_unified, "a    ", &[], "A" => SolverError::ConflictingLetter('a'));
+    validate_error!(test_validate_conflict_same_letter_same_position, "a    ", &["a    "], "" => SolverError::ConflictingPosition('a', 0));
+    validate_error!(test_validate_conflict_position_middle_index, "  a  ", &["  a  "], "" => SolverError::ConflictingPosition('a', 2));
+    validate_error!(test_validate_conflict_letter_takes_precedence, "a    ", &["a    "], "a" => SolverError::ConflictingLetter('a'));
+
+    validate_ok!(test_validate_no_conflict_separate_letters, "a    ", &["b    "], "c");
+    validate_ok!(test_validate_no_conflict_same_letter_other_positions, "a    ", &[" a   "], "");
+    validate_ok!(test_validate_no_conflict_required_in_both, " a   ", &["a    "], "");
     validate_ok!(test_validate_not_all_empty_correct, "a    ", &[], "");
     validate_ok!(test_validate_not_all_empty_misplaced, "     ", &["a    "], "");
     validate_ok!(test_validate_not_all_empty_excluded, "     ", &[], "a");

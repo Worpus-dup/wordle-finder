@@ -109,11 +109,11 @@ Input validation happens at two layers:
   - Tile inputs: a valid letter (A-Z) is accepted, lowercased, and advances to the next tile; a space is treated as a blank and also advances; any other character is rejected — the tile is cleared, a message is shown, and neither navigation advance nor solve runs.
   - Excluded-letters input: invalid characters are dropped and the displayed value is sanitised in place, with a message naming the first dropped character; uppercase letters are lowercased silently.
   - Backspace navigation and the tab/row order are unchanged.
-- **Solver (defensive)**: Even though it is expected to receive already-sanitised input, it must recognize any invalid input and return an error value with the reason to the caller, rather than silently proceeding.
+- **Solver (defensive)**: Even though it is expected to receive already-sanitised input, it must recognize any invalid input and return an error value with the reason to the caller, rather than silently proceeding. This includes contradictory clue sets: a letter that is both required (present in the correct row or any misplaced pattern) and excluded, and a misplaced pattern that locks a letter onto the same position where the correct row already places it. These are reported as `ConflictingLetter` and `ConflictingPosition` (see "Error Types"). Precedence: syntax/format errors first, then `ConflictingLetter`, then `ConflictingPosition`.
 
 The sanitise-and-reflect behaviour described for the visualizer is the preferred end-user experience.
 
-As pasting behaviour is outside the current scope, current functionality when pasting into a tile is to keep the first character only.
+Pasting a multi-character word into a tile fills that tile and the following tiles of the same row with the pasted letters (invalid or extra characters are dropped), letting a whole guess be entered at once.
 
 Design note: overwriting a filled tile with a rejected character clears the tile but leaves previously computed results on screen; they refresh on the next valid input.
 
@@ -129,8 +129,8 @@ Design note: overwriting a filled tile with a rejected character clears the tile
 
 ```rust
 // words.rs - generated from data/answers/wordle-answers-alphabetical.txt
-pub const WORD_COUNT: usize = 2315;
 pub const WORDS: &[u8] = b"abackabaseabate...zinch";
+pub const LETTER_FREQ: [u32; 26] = [...]; // distinct-letter frequency per word
 // Access word at index i: &WORDS[i*5..(i+1)*5]
 ```
 
@@ -199,9 +199,11 @@ As far as we know there is no direct dependencies on other components.
 #### Error Types
 ```rust
 pub enum SolverError {
-    InvalidCharacter(char),   // Non-ASCII character found
-    InvalidLength(usize),     // String not 5 characters
-    EmptyInputs,              // ALL of inputs are empty.
+    InvalidCharacter(char),        // Non-ASCII character found
+    InvalidLength(usize),          // String not 5 characters
+    EmptyInputs,                   // ALL of inputs are empty.
+    ConflictingLetter(char),       // Letter is both required (correct/misplaced) and excluded.
+    ConflictingPosition(char, usize), // Misplaced pattern locks a letter onto a position where the correct row also places it. Position is 0-based in the variant; displayed 1-based.
 }
 ```
 
