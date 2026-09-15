@@ -315,6 +315,8 @@ In the mobile version layout is vertical where inputs are above the outputs. In 
 
 Button for clearing all of inputs are expected.
 
+A message is displayed when the page is used without JavaScript/WebAssembly support, since without them the page cannot compute anything.
+
 ### Headers
 
 Headers on the page are centred.
@@ -327,11 +329,13 @@ Filled tiles are coloured by the type of the "word" they belong to: correct-lett
 
 Typing a valid letter or a space (blank) advances focus to the next tile; a rejected character clears the tile and does not advance. See "User Input Validation".
 
+Pasting a multi-character word into a tile fills that tile and the following tiles of the same row with the pasted letters (invalid or extra characters are dropped), which lets a whole guess be entered at once.
+
 ### Misplaced Letters
 
 As there are 1 or more input fields for misplaced letters, there must be a mechanism to add/remove inputs. Maximum number of input "words" is 5 (max guesses in Wordle - 1). It is proposed to have a small button to the right of each "word" that deletes this "word" and a big button at the bottom of the column that adds a new "word" input.
 
-Deletion logic is simple "delete current 'word' input if there more than 1 input left, otherwise clear it".
+Deletion logic is simple "delete current 'word' input if there more than 1 input left, otherwise clear it". The add button is disabled once the maximum number of rows is reached and re-enabled when a row is removed.
 
 ### Excluded Letters
 
@@ -341,9 +345,13 @@ Excluded letters are entered as a single text input field accepting a string of 
 
 The possible words are shown in the outputs area as equal-width boxes on the tile colour, arranged side-by-side and evenly spaced, wrapping onto further lines as needed. Each word is uppercased and its text is centred within its box.
 
+A summary line precedes the word boxes showing how many words match the current clues ("N possible words"). When the given clues match nothing, a distinct "no words match these clues" message is shown instead; this is an empty-state, distinct from the error field, which reports input/validation problems.
+
+The results and error areas are announced to assistive technology when they change.
+
 ### Error Field
 
-A single message element appears above the results. It is shown when the current input cannot be solved and when part of the input was rejected or dropped during sanitisation. It uses a palette colour that signals attention is needed rather than an error, is prefixed with ">" and is underlined with a thin line of the same colour.
+A single message element appears above the results. It is shown when the current input cannot be solved and when part of the input was rejected or dropped during sanitisation. It uses the error palette colour, is prefixed with ">" and is underlined with a thin line of the same colour.
 
 ### Footer
 

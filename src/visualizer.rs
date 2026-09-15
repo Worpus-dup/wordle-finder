@@ -38,6 +38,17 @@ pub fn init() {
         .add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())
         .expect("failed to add click listener");
     click_closure.forget();
+
+    let paste_doc = document.clone();
+    let paste_closure = Closure::<dyn FnMut(web_sys::Event)>::wrap(Box::new(move |event| {
+        let _ = handle_paste(&paste_doc, &event);
+    }));
+    document
+        .add_event_listener_with_callback("paste", paste_closure.as_ref().unchecked_ref())
+        .expect("failed to add paste listener");
+    paste_closure.forget();
+
+    let _ = sync_add_row_button(&document);
 }
 
 fn handle_click(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
@@ -45,7 +56,8 @@ fn handle_click(document: &web_sys::Document, event: &web_sys::Event) -> Option<
     let target = target.dyn_into::<web_sys::Element>().ok()?;
 
     if target.id() == "add-row" {
-        add_row(document);
+        let _ = add_row(document);
+        let _ = sync_add_row_button(document);
     } else if target.class_list().contains("remove-row") {
         if let Ok(Some(row)) = target.closest(".word-row") {
             remove_row(document, &row);
@@ -56,16 +68,36 @@ fn handle_click(document: &web_sys::Document, event: &web_sys::Event) -> Option<
     Some(())
 }
 
-fn add_row(document: &web_sys::Document) -> Option<()> {
-    let rows = document.get_element_by_id("misplaced-rows")?;
-    if rows.children().length() >= 5 {
-        return None;
+fn add_row(document: &web_sys::Document) -> bool {
+    let Some(rows) = document.get_element_by_id("misplaced-rows") else {
+        return false;
+    };
+    if at_row_cap(rows.children().length()) {
+        return false;
     }
-    let first = rows.first_element_child()?;
-    let clone = first.clone_node_with_deep(true).ok()?;
-    let clone_el = clone.dyn_into::<web_sys::Element>().ok()?;
+    let Some(first) = rows.first_element_child() else {
+        return false;
+    };
+    let Some(clone_el) = first.clone_node_with_deep(true).ok().and_then(|n| n.dyn_into::<web_sys::Element>().ok()) else {
+        return false;
+    };
     let _ = clear_row_inputs(&clone_el);
     let _ = rows.append_child(&clone_el);
+    true
+}
+
+fn at_row_cap(row_count: u32) -> bool {
+    row_count >= 5
+}
+
+fn sync_add_row_button(document: &web_sys::Document) -> Option<()> {
+    let add_button = document.get_element_by_id("add-row")?;
+    let rows = document.get_element_by_id("misplaced-rows")?;
+    if at_row_cap(rows.children().length()) {
+        let _ = add_button.set_attribute("disabled", "");
+    } else {
+        let _ = add_button.remove_attribute("disabled");
+    }
     Some(())
 }
 
@@ -76,6 +108,7 @@ fn remove_row(document: &web_sys::Document, row: &web_sys::Element) -> Option<()
     } else {
         let _ = clear_row_inputs(row);
     }
+    let _ = sync_add_row_button(document);
     let _ = refresh_results(document);
     Some(())
 }
@@ -149,6 +182,57 @@ fn backspace_navigate(document: &web_sys::Document, event: &web_sys::Event) -> O
         let _ = inputs[index - 1].focus();
     }
     Some(())
+}
+
+fn handle_paste(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
+    let target = event.target()?;
+    let target = target.dyn_into::<web_sys::HtmlInputElement>().ok()?;
+    let row = target.closest(".word-row").ok()??;
+    let raw = event
+        .dyn_ref::<web_sys::ClipboardEvent>()?
+        .clipboard_data()?
+        .get_data("text")
+        .ok()?;
+    let mut inputs = Vec::new();
+    if let Ok(list) = row.query_selector_all("input") {
+        for i in 0..list.length() {
+            if let Some(node) = list.item(i)
+                && let Ok(input) = node.dyn_into::<web_sys::HtmlInputElement>()
+            {
+                inputs.push(input);
+            }
+        }
+    }
+    let values: Vec<String> = inputs.iter().map(|i| i.value()).collect();
+    let refs: Vec<&str> = values.iter().map(String::as_str).collect();
+    let start = inputs.iter().position(|i| *i == target)?;
+    let (fills, focus) = spread_plan(refs.len(), start, &raw);
+    for (idx, fill) in fills.iter().enumerate() {
+        if let Some(c) = fill {
+            inputs[idx].set_value(&c.to_string());
+        }
+    }
+    if let Some(f) = focus {
+        let _ = inputs[f].focus();
+    }
+    event.prevent_default();
+    refresh_results(document)
+}
+
+fn spread_plan(row_len: usize, start: usize, raw: &str) -> (Vec<Option<char>>, Option<usize>) {
+    let start = start.min(row_len);
+    let mut fills = vec![None; row_len];
+    let mut slot = start;
+    for c in raw.chars() {
+        if slot >= row_len {
+            break;
+        }
+        if let Ok(letter) = sanitize_letter(c, false) {
+            fills[slot] = Some(letter);
+            slot += 1;
+        }
+    }
+    (fills, (slot < row_len).then_some(slot))
 }
 
 fn handle_input(document: &web_sys::Document, event: &web_sys::Event) -> Option<()> {
@@ -241,11 +325,19 @@ fn render_results(document: &web_sys::Document, words: &[String]) {
     let Some(results) = document.get_element_by_id("results") else {
         return;
     };
-    let html = words
-        .iter()
-        .map(|w| format!("<div>{}</div>", w))
-        .collect::<String>();
+    let mut html = summary_html(words.len());
+    for w in words {
+        html.push_str(&format!("<div>{w}</div>"));
+    }
     results.set_inner_html(&html);
+}
+
+fn summary_html(word_count: usize) -> String {
+    match word_count {
+        0 => "<div class=\"results-summary no-match\">No words match these clues</div>".to_string(),
+        1 => "<div class=\"results-summary\">1 possible word</div>".to_string(),
+        n => format!("<div class=\"results-summary\">{n} possible words</div>"),
+    }
 }
 
 fn clear_results(document: &web_sys::Document) {
@@ -432,5 +524,81 @@ mod tests {
     #[test]
     fn test_sanitize_excluded_empty() {
         assert_eq!(sanitize_excluded(""), "");
+    }
+
+    #[test]
+    fn test_summary_html_no_match() {
+        assert_eq!(
+            summary_html(0),
+            "<div class=\"results-summary no-match\">No words match these clues</div>"
+        );
+    }
+
+    #[test]
+    fn test_summary_html_single() {
+        assert_eq!(
+            summary_html(1),
+            "<div class=\"results-summary\">1 possible word</div>"
+        );
+    }
+
+    #[test]
+    fn test_spread_plan_fills_from_start() {
+        assert_eq!(
+            spread_plan(5, 0, "STARE"),
+            (
+                vec![Some('s'), Some('t'), Some('a'), Some('r'), Some('e')],
+                None
+            )
+        );
+    }
+
+    #[test]
+    fn test_spread_plan_focus_next_slot() {
+        assert_eq!(
+            spread_plan(5, 0, "ab"),
+            (vec![Some('a'), Some('b'), None, None, None], Some(2))
+        );
+    }
+
+    #[test]
+    fn test_spread_plan_caps_at_end() {
+        assert_eq!(
+            spread_plan(5, 3, "qwerty"),
+            (vec![None, None, None, Some('q'), Some('w')], None)
+        );
+    }
+
+    #[test]
+    fn test_spread_plan_skips_invalid() {
+        assert_eq!(
+            spread_plan(5, 0, "a.1 b!c"),
+            (vec![Some('a'), Some('b'), Some('c'), None, None], Some(3))
+        );
+    }
+
+    #[test]
+    fn test_spread_plan_start_past_end() {
+        assert_eq!(spread_plan(5, 9, "x"), (vec![None; 5], None));
+    }
+
+    #[test]
+    fn test_at_row_cap_under() {
+        assert!(!at_row_cap(0));
+        assert!(!at_row_cap(4));
+    }
+
+    #[test]
+    fn test_at_row_cap_at_or_over() {
+        assert!(at_row_cap(5));
+        assert!(at_row_cap(9));
+    }
+
+    #[test]
+    fn test_summary_html_many() {
+        assert_eq!(
+            summary_html(42),
+            "<div class=\"results-summary\">42 possible words</div>"
+        );
     }
 }

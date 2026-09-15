@@ -11,6 +11,7 @@
     --color-correct: #6aaa64;
     --color-misplaced: #c9b458;
     --color-absent: #787c7e;
+    --color-error: #a63d2c;
 
     /* Text (derived) */
     --color-text: #1a1a1a;
@@ -51,6 +52,13 @@ main {
     #outputs {
         flex: 1;
     }
+}
+
+.noscript {
+    background: var(--color-absent);
+    color: var(--color-text-tile);
+    text-align: center;
+    padding: 0.5rem 1rem;
 }
 
 h1 {
@@ -124,6 +132,11 @@ button:hover {
     color: var(--color-text-tile);
 }
 
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 #excluded-letters input {
     width: 100%;
     padding: 0.5rem;
@@ -156,8 +169,23 @@ button:hover {
     text-align: center;
 }
 
+#results > .results-summary {
+    flex-basis: 100%;
+    min-width: 0;
+    padding: 0.25rem;
+    background: none;
+    border: none;
+    font-weight: normal;
+    text-transform: none;
+    color: var(--color-absent);
+}
+
+#results > .results-summary.no-match {
+    font-style: italic;
+}
+
 #error {
-    color: var(--color-misplaced);
+    color: var(--color-error);
     font-weight: bold;
     margin-bottom: 0.5rem;
     border-bottom: 1px solid currentColor;

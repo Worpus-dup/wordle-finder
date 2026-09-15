@@ -19,5 +19,7 @@ web-sys = { version = "0.3", features = [
     "DomTokenList",
     "HtmlCollection",
     "Window",
+    "ClipboardEvent",
+    "DataTransfer",
     "console",
 ] }

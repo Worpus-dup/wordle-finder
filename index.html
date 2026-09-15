@@ -9,7 +9,10 @@
     <link data-trunk rel="rust" data-bin="wordle-finder" />
 </head>
 <body>
-    <main>
+        <noscript>
+            <p class="noscript">Wordle Finder requires JavaScript and WebAssembly to run. Please enable JavaScript and reload the page.</p>
+        </noscript>
+        <main>
         <section id="inputs">
             <h1>Wordle Finder</h1>
 
@@ -49,8 +52,8 @@
 
         <section id="outputs">
             <h2>Possible Words</h2>
-            <div id="error" hidden></div>
-            <div id="results"></div>
+            <div id="error" hidden aria-live="polite"></div>
+            <div id="results" aria-live="polite"></div>
         </section>
     </main>
     <footer>
